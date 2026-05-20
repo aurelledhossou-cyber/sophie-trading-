@@ -479,4 +479,118 @@ async def update_market_data():
             cache["prices"][r["pair"]] = r["price"]
 
     # Fetch bougies et analyser
-    signals =
+    signals = []
+    for pair in ALL_PAIRS:
+        try:
+            # 4H pour la tendance — 110 bougies pour avoir 100 pivots analysables
+            c4h = await fetch_candles(pair, "4h", outputsize=110)
+            await asyncio.sleep(0.3)
+            # 30min pour l'entrée — 50 bougies
+            c30 = await fetch_candles(pair, "30min", outputsize=50)
+            await asyncio.sleep(0.3)
+
+            if c4h: cache["candles_4h"][pair]    = c4h
+            if c30: cache["candles_30min"][pair] = c30
+
+            if c4h and c30:
+                result = analyze_pair_professional(c4h, c30, pair)
+                if result:
+                    signals.append(result)
+                    print(f"  ✅ Signal: {pair} {result['direction']} {result['strength']} score:{result['score']} pivots:{result['pivots_count']}")
+        except Exception as e:
+            print(f"  ❌ Error {pair}: {e}")
+
+    signals.sort(key=lambda x: -x["score"])
+    cache["signals"]     = signals
+    cache["last_update"] = datetime.now(timezone.utc).isoformat()
+
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Done — {len(signals)} signals on {len(cache['prices'])} pairs")
+
+    # ── NOTIFICATION TELEGRAM ─────────────────────────────────────────────────
+    hour = (datetime.now(timezone.utc).hour + 2) % 24
+    if 8 <= hour <= 21 and signals:
+        last_notif = cache.get("last_notification")
+        should_notify = True
+        if last_notif:
+            delta = (datetime.now(timezone.utc) - datetime.fromisoformat(last_notif)).seconds
+            should_notify = delta > 3600
+
+        if should_notify:
+            strong = [s for s in signals if s["strength"] == "FORT"]
+            medium = [s for s in signals if s["strength"] == "MOYEN"]
+
+            msg  = f"📡 <b>Sophie Trading — {datetime.now().strftime('%H:%M')}</b>\n"
+            msg += f"━━━━━━━━━━━━━━━━━━━━\n"
+            msg += f"🎯 <b>{len(signals)} opportunité(s)</b> multi-timeframe\n"
+            msg += f"🟢 FORT: {len(strong)} | 🟡 MOYEN: {len(medium)}\n"
+            msg += f"📊 Tendance 4H (100 bougies) → Entrée 30min\n\n"
+
+            for s in signals[:5]:
+                emoji_dir = "🟢" if s["direction"] == "LONG" else "🔴"
+                emoji_sig = s.get("entry_emoji", "⚡")
+                msg += f"{emoji_dir} <b>{s['pair']}</b> — {s['direction']}\n"
+                msg += f"   {emoji_sig} {s['entry_signal']} | Tendance: {s['trend_4h']}\n"
+                msg += f"   Entrée: <code>{s['entry']}</code>\n"
+                msg += f"   SL: <code>{s['stop_loss']}</code> | TP: <code>{s['take_profit']}</code>\n"
+                msg += f"   R/R: <b>{s['ratio']}:1</b> | Score: {s['score']}/100\n"
+                msg += f"   Zone {s['zone']['type']} ({s['zone']['touches']} touches)\n\n"
+
+            msg += f"⏰ Fenêtre : 8h–21h Paris\n"
+            msg += f"⚠️ Vérifiez toujours sur TradingView avant d'entrer"
+
+            await send_telegram(msg)
+            cache["last_notification"] = datetime.now(timezone.utc).isoformat()
+
+
+async def scheduler():
+    while True:
+        try:
+            await update_market_data()
+        except Exception as e:
+            print(f"Scheduler error: {e}")
+        await asyncio.sleep(60)
+
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(scheduler())
+
+# ── API ROUTES ────────────────────────────────────────────────────────────────
+@app.get("/api/signals")
+async def get_signals():
+    hour = (datetime.now(timezone.utc).hour + 2) % 24
+    return JSONResponse({
+        "signals":     cache["signals"],
+        "last_update": cache["last_update"],
+        "trading_window_active": 8 <= hour <= 21,
+        "hour_paris":  hour,
+        "count":       len(cache["signals"])
+    })
+
+@app.get("/api/prices")
+async def get_prices():
+    return JSONResponse({
+        "prices":      cache["prices"],
+        "last_update": cache["last_update"],
+        "count":       len(cache["prices"])
+    })
+
+@app.get("/api/status")
+async def get_status():
+    return JSONResponse({
+        "status":      "online",
+        "version":     "3.0-professional",
+        "timeframes":  "4H (100 bougies Dow) → 30min (entrée)",
+        "last_update": cache["last_update"],
+        "pairs_scanned": len(ALL_PAIRS),
+        "signals_count": len(cache["signals"]),
+        "telegram_ok": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID),
+    })
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
