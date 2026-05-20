@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sophie Trading — Swing Alert System · LIVE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: #0a0c10;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #c8d8e8;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,255,157,0.008) 3px, rgba(0,255,157,0.008) 4px);
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0a0c10; }
+::-webkit-scrollbar-thumb { background: #1c2a38; border-radius: 3px; }
+@keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:0.2} }
+@keyframes fadeIn  { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideIn { from{transform:translateX(-100%)} to{transform:translateX(0)} }
+@keyframes spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes ticker  { from{transform:translateX(100vw)} to{transform:translateX(-100%)} }
+button { font-family: inherit; cursor: pointer; }
+
+/* ── TICKER ── */
+.ticker-wrap { overflow: hidden; background: rgba(0,255,157,0.04); border-bottom: 1px solid rgba(0,255,157,0.1); height: 28px; display: flex; align-items: center; }
+.ticker-content { display: flex; gap: 40px; white-space: nowrap; animation: ticker 60s linear infinite; padding-left: 100%; }
+.ticker-item { font-size: 10px; letter-spacing: 1px; display: flex; gap: 6px; align-items: center; }
+
+/* ── HEADER ── */
+header { position: sticky; top: 0; z-index: 100; background: rgba(10,12,16,0.97); backdrop-filter: blur(12px); border-bottom: 1px solid #1a2a3a; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 60px; gap: 10px; }
+.logo-icon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg,#00ff9d,#00c4ff); display: flex; align-items: center; justify-content: center; font-size: 17px; box-shadow: 0 0 16px rgba(0,255,157,0.3); flex-shrink: 0; }
+.logo-text { font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #e8f4ff; }
+.logo-sub  { font-size: 7px; color: #3a5068; letter-spacing: 3px; }
+.status-pill { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 5px; font-size: 8px; letter-spacing: 2px; border: 1px solid; }
+.btn { padding: 7px 14px; border-radius: 6px; font-size: 9px; letter-spacing: 2px; font-weight: 600; border: 1px solid; transition: all 0.15s; }
+.btn-scan  { border-color: rgba(0,255,157,0.4); background: rgba(0,255,157,0.08); color: #00ff9d; }
+.btn-scan:hover  { background: rgba(0,255,157,0.15); }
+.btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-refresh { border-color: rgba(245,200,66,0.35); background: rgba(245,200,66,0.06); color: #f5c842; }
+.btn-auto { display: flex; align-items: center; gap: 6px; border-radius: 6px; padding: 6px 12px; font-size: 9px; letter-spacing: 1px; border: 1px solid; }
+.btn-auto.on  { border-color: rgba(0,255,157,0.35); background: rgba(0,255,157,0.08); color: #00ff9d; }
+.btn-auto.off { border-color: rgba(255,92,124,0.35); background: rgba(255,92,124,0.06); color: #ff5c7c; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot.green { background: #00ff9d; box-shadow: 0 0 8px #00ff9d; animation: pulse 1.5s infinite; }
+.dot.red   { background: #ff5c7c; box-shadow: 0 0 8px #ff5c7c; }
+.dot.yellow{ background: #f5c842; box-shadow: 0 0 8px #f5c842; animation: pulse 0.8s infinite; }
+.dot.gray  { background: #3a5068; }
+
+/* PROGRESS */
+.progress-bar { height: 2px; background: #0a0c10; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg,#00ff9d,#00c4ff); transition: width 0.3s; box-shadow: 0 0 8px #00ff9d; }
+
+/* ── LAYOUT ── */
+.layout { display: flex; max-width: 1600px; margin: 0 auto; }
+.sidebar-static { width: 260px; min-height: calc(100vh - 88px); border-right: 1px solid #1a2a3a; flex-shrink: 0; overflow-y: auto; padding: 18px 12px; }
+.main { flex: 1; padding: 18px 22px; min-width: 0; }
+
+/* ── DRAWER ── */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; animation: fadeIn 0.2s ease; }
+.drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; background: #0d1117; border-right: 1px solid #1a2a3a; z-index: 201; overflow-y: auto; padding: 72px 14px 20px; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+.drawer.open  { transform: translateX(0); }
+.drawer.closed{ transform: translateX(-100%); }
+.drawer-close { position: absolute; top: 14px; right: 14px; background: transparent; border: 1px solid #1c2a38; color: #6a8aaa; border-radius: 5px; padding: 4px 10px; font-size: 13px; }
+.burger { background: transparent; border: 1px solid #1c2a38; color: #6a8aaa; border-radius: 5px; padding: 5px 10px; font-size: 16px; line-height: 1; }
+
+/* ── SIDEBAR CONTENT ── */
+.s-label { font-size: 8px; letter-spacing: 4px; color: #3a5068; display: block; margin-bottom: 10px; }
+.tf-btn { padding: 6px 12px; font-size: 9px; border-radius: 5px; border: 1px solid #1c2a38; background: transparent; color: #3a5068; letter-spacing: 1px; transition: all 0.15s; }
+.tf-btn.active { border-color: rgba(0,255,157,0.5); background: rgba(0,255,157,0.1); color: #00ff9d; }
+.group-btn { flex: 1; padding: 6px 4px; font-size: 8px; letter-spacing: 1px; border-radius: 4px; border: 1px solid #1c2a38; background: transparent; color: #3a5068; }
+.pair-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 8px; margin-bottom: 2px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
+.pair-row.selected { background: rgba(0,255,157,0.06); border-color: rgba(0,255,157,0.18); }
+.pair-row:hover { background: rgba(255,255,255,0.03); }
+.checkbox { width: 13px; height: 13px; border-radius: 2px; border: 1px solid #2a3a4a; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #00ff9d; flex-shrink: 0; }
+.checkbox.checked { border-color: #00ff9d; background: rgba(0,255,157,0.15); }
+
+/* ── STATS ── */
+.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px; }
+.stat-card { background: rgba(255,255,255,0.02); border: 1px solid #1a2a3a; border-radius: 9px; padding: 13px 14px; border-top: 2px solid; }
+.stat-label { font-size: 7px; letter-spacing: 2px; color: #3a5068; margin-bottom: 4px; }
+.stat-value { font-size: 28px; font-weight: 700; font-family: monospace; }
+
+/* ── TABS ── */
+.tabs { display: flex; border-bottom: 1px solid #1a2a3a; margin-bottom: 16px; overflow-x: auto; }
+.tab-btn { padding: 10px 18px; font-size: 9px; letter-spacing: 2px; border: none; background: transparent; color: #3a5068; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; white-space: nowrap; }
+.tab-btn.active { color: #00ff9d; border-bottom-color: #00ff9d; }
+
+/* ── FILTERS ── */
+.filters { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-btn { padding: 5px 10px; font-size: 8px; letter-spacing: 1px; border-radius: 4px; border: 1px solid #1c2a38; background: transparent; color: #3a5068; transition: all 0.15s; }
+.filter-btn.active { border-color: rgba(0,255,157,0.4); background: rgba(255,255,255,0.06); color: #00ff9d; }
+.divider { width: 1px; height: 14px; background: #1c2a38; }
+
+/* ── ALERT CARDS ── */
+.alert-card { background: rgba(255,255,255,0.025); border: 1px solid #1a2a3a; border-radius: 9px; padding: 15px 16px; animation: fadeIn 0.3s ease; margin-bottom: 9px; border-left: 3px solid; }
+.alert-grid-desktop { display: grid; grid-template-columns: 170px 80px 110px 110px 80px 70px 1fr; gap: 14px; align-items: center; }
+.alert-grid-tablet  { display: grid; grid-template-columns: 155px 1fr 100px 100px 70px 1fr; gap: 12px; align-items: center; }
+.price-label { font-size: 7px; letter-spacing: 3px; color: #3a5068; margin-bottom: 4px; }
+.price-val   { font-size: 12px; font-family: monospace; }
+.strength-badge { font-size: 9px; padding: 4px 10px; border-radius: 5px; border: 1px solid; letter-spacing: 1px; font-weight: 600; display: inline-block; margin-bottom: 6px; }
+.dir-badge { font-size: 8px; padding: 2px 7px; border-radius: 3px; border: 1px solid; letter-spacing: 1px; }
+.score-bar-wrap { height: 3px; background: #1a2a3a; border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.score-bar { height: 100%; border-radius: 2px; }
+.empty-state { text-align: center; padding: 70px 20px; border: 1px dashed #1c2a38; border-radius: 12px; }
+.empty-icon { font-size: 38px; margin-bottom: 12px; opacity: 0.6; }
+.empty-text { font-size: 10px; letter-spacing: 2px; color: #3a5068; }
+
+/* ── PRICE CARDS ── */
+.price-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 10px; }
+.price-card { background: rgba(255,255,255,0.025); border: 1px solid #1a2a3a; border-radius: 9px; padding: 13px 15px; border-left: 3px solid; }
+
+/* ── SPARKLINE ── */
+.sparkline { display: block; }
+
+/* ── STRATEGY / RULES ── */
+.steps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.step-card  { background: rgba(255,255,255,0.02); border: 1px solid #1a2a3a; border-radius: 10px; padding: 16px; border-top: 2px solid; animation: fadeIn 0.3s ease; }
+.rule-card  { display: flex; gap: 12px; padding: 13px 15px; margin-bottom: 8px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid; border-left: 3px solid; animation: fadeIn 0.3s ease; }
+
+/* ── TOASTS ── */
+.toasts { position: fixed; top: 68px; right: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; max-width: 300px; }
+.toast { padding: 9px 14px; border-radius: 7px; font-size: 10px; letter-spacing: 1px; border: 1px solid; backdrop-filter: blur(8px); animation: fadeIn 0.3s ease; }
+
+/* ── COUNTDOWN ── */
+.countdown { font-size: 8px; color: #3a5068; letter-spacing: 1px; }
+.countdown span { color: #00ff9d; }
+
+/* ── NOTIFICATION BADGE ── */
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #ff5c7c; font-size: 8px; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .sidebar-static { display: none; }
+  .steps-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .main { padding: 12px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value { font-size: 24px; }
+  .tab-btn { padding: 10px 12px; font-size: 8px; letter-spacing: 1px; }
+  .price-grid { grid-template-columns: 1fr; }
+  .header-inner { padding: 0 12px; height: 56px; }
+  .toasts { right: 8px; max-width: calc(100vw - 16px); }
+}
+@media (max-width: 480px) {
+  .logo-text { font-size: 11px; }
+  .btn { padding: 7px 10px; font-size: 9px; }
+}
+</style>
+</head>
+<body>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="burger" id="burgerBtn" onclick="toggleDrawer()" style="display:none">☰</button>
+      <div class="logo-icon">🎯</div>
+      <div class="logo-info">
+        <div class="logo-text">SOPHIE TRADING</div>
+        <div class="logo-sub">SWING ALERT SYSTEM · LIVE DATA</div>
+      </div>
+    </div>
+
+    <div id="statusPill" class="status-pill" style="border-color:rgba(58,80,104,0.4);background:rgba(58,80,104,0.08);color:#3a5068">
+      <div class="dot gray" id="statusDot"></div>
+      <span id="statusLabel">CONNEXION...</span>
+      <span id="statusTime" style="font-size:7px;color:#3a5068;margin-left:4px"></span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="countdown" id="countdown">SYNC : <span>60s</span></div>
+      <button class="btn btn-refresh" onclick="forceRefresh()">🔄<span class="hide-mobile"> COURS</span></button>
+      <button class="btn-auto off" id="autoBtn" onclick="toggleAuto()">
+        <div class="dot red" id="autoDot"></div>
+        <span id="autoLabel">AUTO OFF</span>
+      </button>
+      <div style="position:relative">
+        <button class="btn btn-scan" id="scanBtn" onclick="runScan()">▶<span class="hide-mobile"> SCANNER</span></button>
+        <div class="notif-badge" id="notifBadge" style="display:none">0</div>
+      </div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressBar" style="width:0%"></div></div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-content" id="tickerContent">
+    <span class="ticker-item" style="color:#3a5068">⏳ Chargement des cours...</span>
+  </div>
+</div>
+
+<!-- DRAWER (mobile) -->
+<div class="overlay" id="overlay" style="display:none" onclick="toggleDrawer()"></div>
+<div class="drawer closed" id="drawer">
+  <button class="drawer-close" onclick="toggleDrawer()">✕</button>
+  <div id="drawerContent"></div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <!-- SIDEBAR STATIQUE (desktop) -->
+  <aside class="sidebar-static" id="sidebarStatic"></aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- STATS -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card" style="border-top-color:#00c4ff44">
+        <div class="stat-label">ALERTES</div>
+        <div class="stat-value" id="statTotal" style="color:#00c4ff">0</div>
+      </div>
+      <div class="stat-card" style="border-top-color:#00ff9d44">
+        <div class="stat-label">FORT</div>
+        <div class="stat-value" id="statStrong" style="color:#00ff9d">0</div>
+      </div>
+      <div class="stat-card" style="border-top-color:#f5c84244">
+        <div class="stat-label">MOYEN</div>
+        <div class="stat-value" id="statMedium" style="color:#f5c842">0</div>
+      </div>
+      <div class="stat-card" style="border-top-color:#ff7c5c44">
+        <div class="stat-label">FAIBLE</div>
+        <div class="stat-value" id="statWeak" style="color:#ff7c5c">0</div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="setTab('alerts')"  id="tab-alerts">📡 ALERTES</button>
+      <button class="tab-btn"        onclick="setTab('prices')"  id="tab-prices">💹 COURS LIVE</button>
+      <button class="tab-btn"        onclick="setTab('strategy')"id="tab-strategy">📋 STRATÉGIE</button>
+      <button class="tab-btn"        onclick="setTab('rules')"   id="tab-rules">⚠️ RÈGLES</button>
+    </div>
+
+    <!-- TAB CONTENT -->
+    <div id="tabContent"></div>
+  </main>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const state = {
+  signals: [],
+  prices: {},
+  lastUpdate: null,
+  tradingActive: false,
+  selectedPairs: new Set(["EUR/USD","GBP/USD","USD/JPY","AUD/USD"]),
+  selectedTF: "1H",
+  filterStrength: "ALL",
+  filterDir: "ALL",
+  autoScan: false,
+  activeTab: "alerts",
+  countdown: 60,
+  isMobile: window.innerWidth < 768,
+  isTablet: window.innerWidth >= 768 && window.innerWidth < 1100,
+  isDesktop: window.innerWidth >= 1100,
+};
+
+const MAJOR_PAIRS = ["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","NZD/USD","USD/CAD"];
+const MINOR_PAIRS = ["EUR/GBP","EUR/JPY","EUR/CHF","EUR/AUD","EUR/NZD","GBP/JPY","GBP/CHF","GBP/AUD","GBP/NZD","AUD/JPY","AUD/NZD","AUD/CHF","AUD/CAD","NZD/JPY","NZD/CHF","NZD/CAD","CAD/JPY","CAD/CHF","CHF/JPY"];
+const ALL_PAIRS = [...MAJOR_PAIRS, ...MINOR_PAIRS];
+const TIMEFRAMES = ["30min","1H","2H","4H"];
+
+// Determine API base URL
+const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+  ? 'http://localhost:8000'
+  : window.location.origin;
+
+// ── RESPONSIVE ────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  state.isMobile  = window.innerWidth < 768;
+  state.isTablet  = window.innerWidth >= 768 && window.innerWidth < 1100;
+  state.isDesktop = window.innerWidth >= 1100;
+  const burger = document.getElementById('burgerBtn');
+  if (burger) burger.style.display = state.isDesktop ? 'none' : '';
+  renderSidebar();
+  renderTabContent();
+});
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const strengthColor = s => s==="FORT" ? "#00ff9d" : s==="MOYEN" ? "#f5c842" : "#ff7c5c";
+const dirColor      = d => d==="LONG" ? "#00ff9d" : "#ff5c7c";
+const fmt = (n, pair) => {
+  if (n===null||n===undefined) return "—";
+  return pair && pair.includes("JPY") ? n.toFixed(3) : n.toFixed(5);
+};
+const timeAgo = ts => {
+  if (!ts) return "—";
+  const sec = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec/60)}min`;
+  return `${Math.floor(sec/3600)}h`;
+};
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type="info") {
+  const t = document.getElementById('toasts');
+  const d = document.createElement('div');
+  d.className = 'toast';
+  const colors = { alert:["rgba(0,255,157,0.12)","rgba(0,255,157,0.3)","#00ff9d"], warn:["rgba(255,124,92,0.1)","rgba(255,124,92,0.3)","#ff7c5c"], info:["rgba(0,196,255,0.1)","rgba(0,196,255,0.25)","#00c4ff"] };
+  const [bg,bc,c] = colors[type] || colors.info;
+  d.style.cssText = `background:${bg};border-color:${bc};color:${c}`;
+  d.textContent = msg;
+  t.appendChild(d);
+  setTimeout(() => d.remove(), 5000);
+}
+
+// ── WEB PUSH NOTIFICATIONS ────────────────────────────────────────────────────
+async function requestNotifications() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') showToast('🔔 Notifications activées !', 'alert');
+  }
+}
+function sendPushNotification(title, body) {
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '🎯' });
+  }
+}
+
+// ── API CALLS ─────────────────────────────────────────────────────────────────
+async function fetchSignals() {
+  try {
+    const r = await fetch(`${API_BASE}/api/signals`);
+    return await r.json();
+  } catch(e) { console.error('fetchSignals:', e); return null; }
+}
+async function fetchPrices() {
+  try {
+    const r = await fetch(`${API_BASE}/api/prices`);
+    return await r.json();
+  } catch(e) { console.error('fetchPrices:', e); return null; }
+}
+async function fetchStatus() {
+  try {
+    const r = await fetch(`${API_BASE}/api/status`);
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// ── UPDATE UI ─────────────────────────────────────────────────────────────────
+function updateStatus(status) {
+  const dot   = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
+  const time  = document.getElementById('statusTime');
+  const pill  = document.getElementById('statusPill');
+  if (!status) {
+    dot.className = 'dot red';
+    label.textContent = 'HORS LIGNE';
+    pill.style.borderColor = 'rgba(255,92,124,0.3)';
+    pill.style.color = '#ff5c7c';
+    return;
+  }
+  dot.className = 'dot green';
+  label.textContent = 'DONNÉES LIVE';
+  pill.style.borderColor = 'rgba(0,255,157,0.3)';
+  pill.style.color = '#00ff9d';
+  if (status.last_update) {
+    const d = new Date(status.last_update);
+    time.textContent = d.toLocaleTimeString('fr-FR');
+  }
+}
+
+function updateStats(signals) {
+  const total  = signals.length;
+  const strong = signals.filter(s=>s.strength==="FORT").length;
+  const medium = signals.filter(s=>s.strength==="MOYEN").length;
+  const weak   = signals.filter(s=>s.strength==="FAIBLE").length;
+  document.getElementById('statTotal').textContent  = total;
+  document.getElementById('statStrong').textContent = strong;
+  document.getElementById('statMedium').textContent = medium;
+  document.getElementById('statWeak').textContent   = weak;
+  const badge = document.getElementById('notifBadge');
+  if (total > 0) { badge.style.display='flex'; badge.textContent=total; }
+  else badge.style.display='none';
+}
+
+function updateTicker(prices) {
+  const ticker = document.getElementById('tickerContent');
+  if (!prices || Object.keys(prices).length === 0) return;
+  const html = Object.entries(prices).map(([pair, price]) => {
+    if (!price) return '';
+    const sig  = state.signals.find(s=>s.pair===pair);
+    const color = sig ? strengthColor(sig.strength) : '#6a8aaa';
+    return `<span class="ticker-item" style="color:${color}">
+      <span style="color:#c8d8e8;font-weight:600">${pair}</span>
+      <span>${pair.includes('JPY')?price.toFixed(3):price.toFixed(5)}</span>
+      ${sig?`<span style="color:${dirColor(sig.direction)}">${sig.direction}</span>`:''}
+    </span>`;
+  }).join('');
+  ticker.innerHTML = html || ticker.innerHTML;
+}
+
+// ── SPARKLINE ─────────────────────────────────────────────────────────────────
+function sparklineSVG(candles, color, w=60, h=22) {
+  if (!candles || candles.length < 2) return '';
+  const closes = candles.slice(-20).map(c=>c.close||c);
+  const mn = Math.min(...closes), mx = Math.max(...closes);
+  const range = mx - mn || 1;
+  const pts = closes.map((v,i)=>{
+    const x = (i/(closes.length-1))*w;
+    const y = h - ((v-mn)/range)*h;
+    return `${x},${y}`;
+  }).join(' ');
+  return `<svg width="${w}" height="${h}" class="sparkline"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/></svg>`;
+}
+
+// ── RENDER ALERTS ──────────────────────────────────────────────────────────────
+function renderAlertCard(a) {
+  const sc = strengthColor(a.strength);
+  const dc = dirColor(a.direction);
+  const changePos = true;
+
+  if (state.isMobile) {
+    return `<div class="alert-card" style="border-left-color:${sc}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#e8f4ff;font-family:monospace">${a.pair}</div>
+          <div style="font-size:13px;color:#c8d8e8;font-family:monospace;margin-bottom:5px">
+            ${fmt(a.entry,a.pair)}
+            <span style="font-size:10px;margin-left:6px;color:${dc}">${a.direction==='LONG'?'▲':'▼'}</span>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <span class="dir-badge" style="color:${dc};border-color:${dc}44;background:${dc}12">${a.direction}</span>
+            <span style="font-size:8px;color:#3a5068">1H</span>
+            <span style="font-size:8px;color:#3a5068">${timeAgo(a.timestamp)}</span>
+          </div>
+          <div style="font-size:8px;color:#3a5068;margin-top:3px">${a.figure} · ${a.trend}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="strength-badge" style="color:${sc};border-color:${sc}44;background:${sc}12">${a.strength}</div>
+          <div class="score-bar-wrap" style="width:50px;margin-left:auto;margin-bottom:3px"><div class="score-bar" style="width:${a.score}%;background:${sc}"></div></div>
+          <div style="font-size:7px;color:#3a5068">${a.score}/100</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        <div><div class="price-label">ENTRÉE</div><div style="font-size:11px;font-family:monospace;color:#c8d8e8">${fmt(a.entry,a.pair)}</div></div>
+        <div><div class="price-label">STOP LOSS</div><div style="font-size:11px;font-family:monospace;color:#ff5c7c">${fmt(a.stop_loss,a.pair)}</div></div>
+        <div><div class="price-label">TAKE PROFIT</div><div style="font-size:11px;font-family:monospace;color:#00ff9d">${fmt(a.take_profit,a.pair)}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="price-label">RATIO R/R</div>
+          <div style="font-size:18px;font-weight:700;font-family:monospace;color:${a.ratio>=3?'#00ff9d':'#f5c842'}">${a.ratio}:1</div>
+        </div>
+        <div style="display:flex;gap:5px;font-size:12px">
+          ${a.in_trading_hours?'<span title="8h-21h">⏰</span>':''}
+          ${a.near_psych?'<span title="Zone psy">🔢</span>':''}
+          ${a.breakout?'<span title="Breakout">⚡</span>':''}
+        </div>
+        ${sparklineSVG(null, dc, 80, 28)}
+      </div>
+    </div>`;
+  }
+
+  if (state.isTablet) {
+    return `<div class="alert-card" style="border-left-color:${sc}">
+      <div class="alert-grid-tablet">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#e8f4ff;font-family:monospace;margin-bottom:2px">${a.pair}</div>
+          <div style="font-size:12px;color:#c8d8e8;font-family:monospace;margin-bottom:4px">${fmt(a.entry,a.pair)}</div>
+          <div style="display:flex;gap:5px">
+            <span class="dir-badge" style="color:${dc};border-color:${dc}44;background:${dc}12">${a.direction}</span>
+            <span style="font-size:8px;color:#3a5068">1H · ${timeAgo(a.timestamp)}</span>
+          </div>
+          <div style="font-size:8px;color:#3a5068;margin-top:2px">${a.figure} · ${a.trend}</div>
+        </div>
+        ${sparklineSVG(null, dc, 70, 26)}
+        <div><div class="price-label">ENTRÉE</div><div class="price-val" style="color:#c8d8e8">${fmt(a.entry,a.pair)}</div></div>
+        <div>
+          <div class="price-label">S/L · T/P</div>
+          <div style="font-size:11px;font-family:monospace;color:#ff5c7c">${fmt(a.stop_loss,a.pair)}</div>
+          <div style="font-size:11px;font-family:monospace;color:#00ff9d">${fmt(a.take_profit,a.pair)}</div>
+        </div>
+        <div>
+          <div class="price-label">R/R</div>
+          <div style="font-size:18px;font-weight:700;font-family:monospace;color:${a.ratio>=3?'#00ff9d':'#f5c842'}">${a.ratio}:1</div>
+        </div>
+        <div style="text-align:right">
+          <div class="strength-badge" style="color:${sc};border-color:${sc}44;background:${sc}12">${a.strength}</div>
+          <div class="score-bar-wrap" style="width:55px;margin-left:auto"><div class="score-bar" style="width:${a.score}%;background:${sc}"></div></div>
+          <div style="font-size:7px;color:#3a5068;margin-top:2px">${a.score}/100</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Desktop
+  return `<div class="alert-card" style="border-left-color:${sc}">
+    <div class="alert-grid-desktop">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#e8f4ff;font-family:monospace;margin-bottom:2px">${a.pair}</div>
+        <div style="font-size:12px;color:#c8d8e8;font-family:monospace;margin-bottom:4px">${fmt(a.entry,a.pair)}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="dir-badge" style="color:${dc};border-color:${dc}44;background:${dc}12">${a.direction}</span>
+          <span style="font-size:8px;color:#3a5068">1H</span>
+          <span style="font-size:8px;color:#3a5068">${timeAgo(a.timestamp)}</span>
+        </div>
+        <div style="font-size:8px;color:#3a5068;margin-top:3px">${a.figure} · ${a.trend}</div>
+      </div>
+      <div><div class="price-label">GRAPHE</div>${sparklineSVG(null, dc)}</div>
+      <div><div class="price-label">ENTRÉE</div><div class="price-val" style="color:#c8d8e8">${fmt(a.entry,a.pair)}</div></div>
+      <div><div class="price-label">STOP LOSS</div><div class="price-val" style="color:#ff5c7c">${fmt(a.stop_loss,a.pair)}</div></div>
+      <div><div class="price-label">TAKE PROFIT</div><div class="price-val" style="color:#00ff9d">${fmt(a.take_profit,a.pair)}</div></div>
+      <div>
+        <div class="price-label">R/R</div>
+        <div style="font-size:18px;font-weight:700;font-family:monospace;color:${a.ratio>=3?'#00ff9d':'#f5c842'}">${a.ratio}:1</div>
+      </div>
+      <div style="text-align:right">
+        <div class="strength-badge" style="color:${sc};border-color:${sc}44;background:${sc}12">${a.strength}</div>
+        <div class="score-bar-wrap" style="width:60px;margin-left:auto;margin-bottom:3px"><div class="score-bar" style="width:${a.score}%;background:${sc}"></div></div>
+        <div style="font-size:7px;color:#3a5068">${a.score}/100</div>
+        <div style="display:flex;gap:4px;justify-content:flex-end;margin-top:4px;font-size:10px">
+          ${a.in_trading_hours?'<span title="8h-21h">⏰</span>':''}
+          ${a.near_psych?'<span title="Zone psy">🔢</span>':''}
+          ${a.breakout?'<span title="Breakout">⚡</span>':''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── RENDER TAB CONTENT ────────────────────────────────────────────────────────
+function renderTabContent() {
+  const container = document.getElementById('tabContent');
+  const tab = state.activeTab;
+
+  if (tab === 'alerts') {
+    const filtered = state.signals.filter(a => {
+      if (state.filterStrength !== 'ALL' && a.strength !== state.filterStrength) return false;
+      if (state.filterDir !== 'ALL' && a.direction !== state.filterDir) return false;
+      return true;
+    });
+    const filtersHtml = `
+      <div class="filters">
+        <span style="font-size:8px;letter-spacing:1px;color:#3a5068">FORCE :</span>
+        ${[['ALL','ALL'],['FORT','FORT'],['MOYEN','MOY'],['FAIBLE','FAIB']].map(([v,l])=>
+          `<button class="filter-btn${state.filterStrength===v?' active':''}" onclick="setFilter('strength','${v}')">${l}</button>`
+        ).join('')}
+        <div class="divider"></div>
+        <span style="font-size:8px;letter-spacing:1px;color:#3a5068">DIR :</span>
+        ${[['ALL','TOUT'],['LONG','LONG'],['SHORT','SHORT']].map(([v,l])=>
+          `<button class="filter-btn${state.filterDir===v?' active':''}" onclick="setFilter('dir','${v}')">${l}</button>`
+        ).join('')}
+      </div>`;
+
+    if (filtered.length === 0) {
+      container.innerHTML = filtersHtml + `<div class="empty-state"><div class="empty-icon">📡</div><div class="empty-text">AUCUNE ALERTE — SCAN EN COURS...</div></div>`;
+      return;
+    }
+    container.innerHTML = filtersHtml + filtered.map(a => renderAlertCard(a)).join('');
+    return;
+  }
+
+  if (tab === 'prices') {
+    const entries = Object.entries(state.prices);
+    if (entries.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">💹</div><div class="empty-text">CHARGEMENT DES COURS...</div></div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:8px;letter-spacing:2px;color:#3a5068">FOREX LIVE · MàJ AUTO 60s · TWELVE DATA</div>
+        <button class="btn btn-refresh" onclick="forceRefresh()">🔄 RAFRAÎCHIR</button>
+      </div>
+      <div class="price-grid">
+        ${entries.map(([pair, price]) => {
+          if (!price) return '';
+          const sig = state.signals.find(s=>s.pair===pair);
+          const sc  = sig ? strengthColor(sig.strength) : '#1a2a3a';
+          return `<div class="price-card" style="border-left-color:${sig?dirColor(sig.direction):'#3a5068'}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#e8f4ff;font-family:monospace">${pair}</div>
+                ${sig?`<div style="font-size:7px;letter-spacing:1px;color:${sc};margin-top:2px">● ${sig.strength} ${sig.direction}</div>`:''}
+              </div>
+            </div>
+            <div style="font-size:20px;font-weight:700;color:#e8f4ff;font-family:monospace;margin-bottom:4px">
+              ${pair.includes('JPY')?price.toFixed(3):price.toFixed(5)}
+            </div>
+            ${sig?`<div style="font-size:8px;color:#3a5068">R/R ${sig.ratio}:1 · Entrée ${fmt(sig.entry,pair)}</div>`:'<div style="font-size:8px;color:#3a5068">Aucun signal actif</div>'}
+          </div>`;
+        }).join('')}
+      </div>`;
+    return;
+  }
+
+  if (tab === 'strategy') {
+    const steps = [
+      {n:"01",icon:"📈",color:"#00c4ff",title:"IDENTIFIER LA TENDANCE",desc:"Analyser sur 30min–4H. Identifier tendance haussière (HH+HL) ou baissière (LH+LL) selon la théorie de Dow."},
+      {n:"02",icon:"🔄",color:"#a78bff",title:"FIGURE DE RETOURNEMENT",desc:"Repérer un triangle, wedge ou consolidation à la fin de la tendance."},
+      {n:"03",icon:"📐",color:"#f5c842",title:"ZONE DE PRIX",desc:"Identifier la zone de prix clé (support ou résistance) correspondant à la consolidation."},
+      {n:"04",icon:"🎯",color:"#ff7c5c",title:"ZONES PSYCHO + TAKE PROFIT",desc:"Tracer les niveaux psychologiques. TP avant la prochaine résistance. Ratio min 2.5."},
+      {n:"05",icon:"⚡",color:"#00ff9d",title:"PRISE DE POSITION",desc:"Attendre la clôture de la bougie de cassure. SL sous le dernier HH/LL. Entre 8h et 21h."},
+      {n:"06",icon:"🛡️",color:"#ff4d6d",title:"MANAGEMENT POSITION",desc:"SL selon Dow. SL sous zones psychologiques. Management de probabilités."},
+    ];
+    container.innerHTML = `<div class="steps-grid">${steps.map(s=>`
+      <div class="step-card" style="border-top-color:${s.color}55">
+        <div style="display:flex;gap:12px">
+          <div style="width:36px;height:36px;border-radius:8px;flex-shrink:0;background:${s.color}18;border:1px solid ${s.color}44;display:flex;align-items:center;justify-content:center;font-size:17px">${s.icon}</div>
+          <div>
+            <div style="font-size:8px;letter-spacing:3px;color:${s.color};margin-bottom:4px">ÉTAPE ${s.n}</div>
+            <div style="font-size:10px;font-weight:700;color:#e8f4ff;letter-spacing:1px;margin-bottom:7px">${s.title}</div>
+            <div style="font-size:9px;color:#6a8aaa;line-height:1.7">${s.desc}</div>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+    return;
+  }
+
+  if (tab === 'rules') {
+    const rules = [
+      {ok:false,title:"Ne jamais entrer après un mouvement déjà lancé",desc:"Le signal doit être pris avant que le mouvement soit engagé."},
+      {ok:false,title:"Ne jamais entrer si le marché réintègre la zone",desc:"Si le prix revient dans la zone après la cassure, signal invalidé."},
+      {ok:true, title:"Prises de position entre 8h et 21h uniquement",desc:"Meilleures opportunités sur sessions London et New York."},
+      {ok:true, title:"Ratio Risk/Reward minimum de 2.5",desc:"Backtest : ratio moyen 3.1 sur 318 trades. Règle non négociable."},
+      {ok:true, title:"Sélectionner selon le backtest",desc:"Privilégier les paires avec les winrates les plus élevés."},
+      {ok:true, title:"Attendre la clôture de la bougie de cassure",desc:"Ne jamais entrer sur une bougie en cours. La clôture confirme."},
+    ];
+    container.innerHTML = `<div style="max-width:720px">
+      ${rules.map(r=>{const c=r.ok?"#00ff9d":"#ff5c7c";return `<div class="rule-card" style="border-color:${r.ok?"rgba(0,255,157,0.18)":"rgba(255,92,124,0.18)"};border-left-color:${c}">
+        <div style="width:22px;height:22px;border-radius:50%;flex-shrink:0;background:${c}18;border:1px solid ${c}33;color:${c};display:flex;align-items:center;justify-content:center;font-size:10px">${r.ok?"✓":"✗"}</div>
+        <div>
+          <div style="font-size:10px;color:#e8f4ff;margin-bottom:4px">${r.title}</div>
+          <div style="font-size:9px;color:#6a8aaa;line-height:1.65">${r.desc}</div>
+        </div>
+      </div>`}).join('')}
+      <div style="background:rgba(0,255,157,0.05);border:1px solid rgba(0,255,157,0.15);border-radius:10px;padding:16px 20px;margin-top:16px">
+        <div style="font-size:8px;letter-spacing:3px;color:rgba(0,255,157,0.6);margin-bottom:12px">PERFORMANCES — 318 TRADES FOREX</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          ${[["64.49%","#00ff9d","WIN RATE"],["3.1:1","#00c4ff","RATIO MOY"],["−8%","#f5c842","DRAWDOWN"]].map(([v,c,k])=>`
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:${c};font-family:monospace">${v}</div>
+            <div style="font-size:7px;letter-spacing:2px;color:#3a5068;margin-top:4px">${k}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:11px 14px;border-radius:8px;background:rgba(0,196,255,0.05);border:1px solid rgba(0,196,255,0.15);font-size:9px;color:#6a8aaa;line-height:1.8">
+        <span style="color:#00c4ff;letter-spacing:1px;font-size:8px">SOURCE · </span>Cours en temps réel via Twelve Data API. Mise à jour automatique toutes les 60 secondes.
+      </div>
+    </div>`;
+  }
+}
+
+// ── RENDER SIDEBAR ────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const html = `
+    <div style="margin-bottom:22px">
+      <span class="s-label">TEMPORALITÉ</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${TIMEFRAMES.map(tf=>`<button class="tf-btn${state.selectedTF===tf?' active':''}" onclick="setTF('${tf}')">${tf}</button>`).join('')}
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <span class="s-label">SÉLECTION RAPIDE</span>
+      <div style="display:flex;gap:5px">
+        ${[['major','MAJ'],['minor','MIN'],['all','TOUT']].map(([k,l])=>`<button class="group-btn" onclick="selectGroup('${k}')">${l}</button>`).join('')}
+      </div>
+    </div>
+    ${[['── MAJEURES ──', MAJOR_PAIRS],['── MINEURES ──', MINOR_PAIRS]].map(([label,pairs])=>`
+      <div style="margin-bottom:14px">
+        <div style="font-size:8px;letter-spacing:2px;color:#2a3a48;text-align:center;margin-bottom:6px">${label}</div>
+        ${pairs.map(p=>{
+          const sel = state.selectedPairs.has(p);
+          const sig = state.signals.find(s=>s.pair===p);
+          const pr  = state.prices[p];
+          return `<div class="pair-row${sel?' selected':''}" onclick="togglePair('${p}')">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="checkbox${sel?' checked':''}">${sel?'✓':''}</div>
+              <div>
+                <div style="font-size:10px;color:${sel?'#c8d8e8':'#3a5068'}">${p}</div>
+                ${pr?`<div style="font-size:8px;color:#6a8aaa;font-family:monospace">${p.includes('JPY')?pr.toFixed(3):pr.toFixed(5)}</div>`:''}
+              </div>
+            </div>
+            ${sig?(sig.strength==='FORT'
+              ?`<span style="font-size:7px;padding:1px 5px;border-radius:3px;background:${strengthColor(sig.strength)}22;color:${strengthColor(sig.strength)};border:1px solid ${strengthColor(sig.strength)}44">${sig.strength}</span>`
+              :`<div style="width:6px;height:6px;border-radius:50%;background:${strengthColor(sig.strength)};box-shadow:0 0 4px ${strengthColor(sig.strength)}"></div>`)
+            :''}
+          </div>`;
+        }).join('')}
+      </div>`).join('')}
+  `;
+  const stat = document.getElementById('sidebarStatic');
+  const draw = document.getElementById('drawerContent');
+  if (stat) stat.innerHTML = html;
+  if (draw) draw.innerHTML = html;
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`)?.classList.add('active');
+  renderTabContent();
+}
+function setFilter(type, val) {
+  if (type==='strength') state.filterStrength = val;
+  else state.filterDir = val;
+  renderTabContent();
+}
+function setTF(tf) {
+  state.selectedTF = tf;
+  renderSidebar();
+}
+function togglePair(pair) {
+  if (state.selectedPairs.has(pair)) {
+    if (state.selectedPairs.size > 1) state.selectedPairs.delete(pair);
+  } else {
+    state.selectedPairs.add(pair);
+  }
+  renderSidebar();
+}
+function selectGroup(g) {
+  state.selectedPairs = new Set(g==='major'?MAJOR_PAIRS:g==='minor'?MINOR_PAIRS:ALL_PAIRS);
+  renderSidebar();
+}
+function toggleDrawer() {
+  const drawer  = document.getElementById('drawer');
+  const overlay = document.getElementById('overlay');
+  const isOpen  = drawer.classList.contains('open');
+  drawer.classList.toggle('open', !isOpen);
+  drawer.classList.toggle('closed', isOpen);
+  overlay.style.display = isOpen ? 'none' : 'block';
+}
+function toggleAuto() {
+  state.autoScan = !state.autoScan;
+  const btn   = document.getElementById('autoBtn');
+  const dot   = document.getElementById('autoDot');
+  const label = document.getElementById('autoLabel');
+  btn.className   = `btn-auto ${state.autoScan?'on':'off'}`;
+  dot.className   = `dot ${state.autoScan?'green':'red'}`;
+  label.textContent = state.autoScan?'AUTO ON':'AUTO OFF';
+  showToast(state.autoScan?'🔄 Auto-scan activé (60s)':'⏹ Auto-scan désactivé', state.autoScan?'alert':'info');
+}
+
+// ── SCAN PRINCIPAL ────────────────────────────────────────────────────────────
+let scanning = false;
+async function runScan() {
+  if (scanning) return;
+  scanning = true;
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ SCAN...';
+  document.getElementById('progressBar').style.width = '30%';
+
+  try {
+    const [sigData, priceData] = await Promise.all([fetchSignals(), fetchPrices()]);
+    document.getElementById('progressBar').style.width = '80%';
+
+    if (sigData) {
+      state.signals    = sigData.signals || [];
+      state.lastUpdate = sigData.last_update;
+      state.tradingActive = sigData.trading_window_active;
+      updateStats(state.signals);
+
+      // Notifications push navigateur
+      const strong = state.signals.filter(s=>s.strength==='FORT');
+      if (state.signals.length > 0) {
+        const hour = sigData.hour_paris || 0;
+        if (hour >= 8 && hour <= 21) {
+          sendPushNotification(
+            `📡 Sophie Trading — ${state.signals.length} signal(s)`,
+            `${strong.length} signal(s) FORT(s) · ${state.signals.map(s=>s.pair).join(', ')}`
+          );
+        }
+      }
+      strong.slice(0,3).forEach(s => showToast(`🔔 ${s.pair} — Signal FORT ${s.direction} · R/R ${s.ratio}:1`, 'alert'));
+      if (state.signals.length > 0) showToast(`📡 ${state.signals.length} signal(s) détecté(s) · Twelve Data`, 'info');
+      else showToast('📡 Scan terminé · Aucun signal stratégique', 'info');
+    }
+
+    if (priceData) {
+      state.prices = priceData.prices || {};
+      updateTicker(state.prices);
+    }
+
+    updateStatus({ last_update: state.lastUpdate });
+  } catch(e) {
+    console.error('Scan error:', e);
+    updateStatus(null);
+    showToast('⚠️ Erreur de connexion au serveur', 'warn');
+  }
+
+  document.getElementById('progressBar').style.width = '100%';
+  setTimeout(() => document.getElementById('progressBar').style.width = '0%', 500);
+  btn.disabled = false;
+  btn.innerHTML = '▶<span class="hide-mobile"> SCANNER</span>';
+  scanning = false;
+  renderSidebar();
+  renderTabContent();
+}
+
+async function forceRefresh() {
+  const priceData = await fetchPrices();
+  if (priceData) {
+    state.prices = priceData.prices || {};
+    updateTicker(state.prices);
+    renderSidebar();
+    if (state.activeTab === 'prices') renderTabContent();
+    showToast('✅ Cours rafraîchis · ' + new Date().toLocaleTimeString('fr-FR'), 'info');
+  }
+}
+
+// ── COUNTDOWN ─────────────────────────────────────────────────────────────────
+let countdownVal = 60;
+setInterval(() => {
+  countdownVal--;
+  if (countdownVal <= 0) {
+    countdownVal = 60;
+    if (state.autoScan) runScan();
+  }
+  const el = document.getElementById('countdown');
+  if (el) el.innerHTML = `SYNC : <span>${countdownVal}s</span>`;
+}, 1000);
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  // Burger mobile
+  const burger = document.getElementById('burgerBtn');
+  if (burger) burger.style.display = state.isDesktop ? 'none' : '';
+
+  // Notifications
+  requestNotifications();
+
+  // Render initial
+  renderSidebar();
+  renderTabContent();
+
+  // Premier scan
+  setTimeout(() => runScan(), 500);
+
+  // Auto-refresh status
+  setInterval(async () => {
+    const status = await fetchStatus();
+    if (status) updateStatus(status);
+  }, 30000);
+}
+
+window.addEventListener('load', init);
+window.addEventListener('resize', () => {
+  const burger = document.getElementById('burgerBtn');
+  if (burger) burger.style.display = state.isDesktop ? 'none' : '';
+});
+</script>
+</body>
+</html>

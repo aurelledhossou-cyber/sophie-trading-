@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sophie-trading
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: TWELVE_DATA_KEY
+        value: 0a71d306b7f64336950805189681a0a2
+      - key: TELEGRAM_TOKEN
+        value: "8637347101:AAG7i7-hGo8JcM8oULt8qRF3FN4hEDS5318"
+      - key: TELEGRAM_CHAT_ID
+        value: "5650372889"
