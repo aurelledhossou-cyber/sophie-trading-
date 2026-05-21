@@ -172,7 +172,7 @@ header { position: sticky; top: 0; z-index: 100; background: rgba(10,12,16,0.97)
       <div class="logo-icon">🎯</div>
       <div class="logo-info">
         <div class="logo-text">SOPHIE TRADING</div>
-        <div class="logo-sub">SWING ALERT SYSTEM · LIVE DATA</div>
+        <div class="logo-sub">DOUBLE STRUCTURE v4 · LIVE</div>
       </div>
     </div>
 
@@ -197,6 +197,18 @@ header { position: sticky; top: 0; z-index: 100; background: rgba(10,12,16,0.97)
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progressBar" style="width:0%"></div></div>
 </header>
+
+<!-- TF BANNER -->
+<div style="background:rgba(0,12,24,0.95);border-bottom:1px solid #0d2030;padding:5px 20px;display:flex;align-items:center;gap:12px;font-family:'IBM Plex Mono',monospace">
+  <span style="font-size:7px;letter-spacing:3px;color:#3a5068">ANALYSE :</span>
+  <span style="font-size:8px;color:#00c4ff;letter-spacing:1px">📊 TENDANCE 4H</span>
+  <span style="font-size:8px;color:#3a5068">·</span>
+  <span style="font-size:8px;color:#00ff9d;letter-spacing:1px">⚡ ENTRÉE 30MIN</span>
+  <span style="font-size:8px;color:#3a5068">·</span>
+  <span style="font-size:8px;color:#f5c842;letter-spacing:1px">📐 DOW 100 BOUGIES</span>
+  <span style="font-size:8px;color:#3a5068">·</span>
+  <span style="font-size:8px;color:#a78bff;letter-spacing:1px">🎯 R/R MIN 2.5</span>
+</div>
 
 <!-- TICKER -->
 <div class="ticker-wrap">
@@ -261,7 +273,7 @@ const state = {
   lastUpdate: null,
   tradingActive: false,
   selectedPairs: new Set(["EUR/USD","GBP/USD","USD/JPY","AUD/USD"]),
-  selectedTF: "1H",
+  // selectedTF removed — fixed 4H trend / 30min entry
   filterStrength: "ALL",
   filterDir: "ALL",
   autoScan: false,
@@ -275,7 +287,7 @@ const state = {
 const MAJOR_PAIRS = ["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","NZD/USD","USD/CAD"];
 const MINOR_PAIRS = ["EUR/GBP","EUR/JPY","EUR/CHF","EUR/AUD","EUR/NZD","GBP/JPY","GBP/CHF","GBP/AUD","GBP/NZD","AUD/JPY","AUD/NZD","AUD/CHF","AUD/CAD","NZD/JPY","NZD/CHF","NZD/CAD","CAD/JPY","CAD/CHF","CHF/JPY"];
 const ALL_PAIRS = [...MAJOR_PAIRS, ...MINOR_PAIRS];
-const TIMEFRAMES = ["30min","1H","2H","4H"];
+// Timeframes fixed: 4H trend → 30min entry (set in backend)
 
 // Determine API base URL
 const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
@@ -439,10 +451,10 @@ function renderAlertCard(a) {
           </div>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
             <span class="dir-badge" style="color:${dc};border-color:${dc}44;background:${dc}12">${a.direction}</span>
-            <span style="font-size:8px;color:#3a5068">1H</span>
+            <span style="font-size:8px;color:#00c4ff">${a.timeframe_trend||'4H'}→${a.timeframe_entry||'30min'}</span>
             <span style="font-size:8px;color:#3a5068">${timeAgo(a.timestamp)}</span>
           </div>
-          <div style="font-size:8px;color:#3a5068;margin-top:3px">${a.figure} · ${a.trend}</div>
+          <div style="font-size:8px;color:#3a5068;margin-top:3px">${a.entry_signal||''} · ${a.trend_4h||a.trend||''}</div>
         </div>
         <div style="text-align:right">
           <div class="strength-badge" style="color:${sc};border-color:${sc}44;background:${sc}12">${a.strength}</div>
@@ -455,17 +467,24 @@ function renderAlertCard(a) {
         <div><div class="price-label">STOP LOSS</div><div style="font-size:11px;font-family:monospace;color:#ff5c7c">${fmt(a.stop_loss,a.pair)}</div></div>
         <div><div class="price-label">TAKE PROFIT</div><div style="font-size:11px;font-family:monospace;color:#00ff9d">${fmt(a.take_profit,a.pair)}</div></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div>
           <div class="price-label">RATIO R/R</div>
           <div style="font-size:18px;font-weight:700;font-family:monospace;color:${a.ratio>=3?'#00ff9d':'#f5c842'}">${a.ratio}:1</div>
         </div>
-        <div style="display:flex;gap:5px;font-size:12px">
-          ${a.in_trading_hours?'<span title="8h-21h">⏰</span>':''}
-          ${a.near_psych?'<span title="Zone psy">🔢</span>':''}
-          ${a.breakout?'<span title="Breakout">⚡</span>':''}
+        <div style="display:flex;gap:4px;font-size:11px">
+          ${a.pullback_done?'<span title="Pull back confirmé">🔄</span>':''}
+          ${a.mm100_status==='PLATE'?'<span title="MM100 plate">📐</span>':''}
+          ${a.session?'<span title="Session">📡</span>':''}
         </div>
         ${sparklineSVG(null, dc, 80, 28)}
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:7px 10px;font-size:8px;color:#3a5068;line-height:1.8">
+        <span style="color:#00c4ff">TF:</span> 4H:${a.trend_4h?a.trend_4h[0]:'-'} 2H:${a.trend_2h?a.trend_2h[0]:'-'} 1H:${a.trend_1h?a.trend_1h[0]:'-'} 30m:${a.trend_30m?a.trend_30m[0]:'-'}
+        &nbsp;·&nbsp;<span style="color:#a78bff">MM100:</span> ${a.mm100_status||'-'}
+        &nbsp;·&nbsp;<span style="color:#f5c842">Zone:</span> ${a.figure_type||'-'}
+        &nbsp;·&nbsp;<span style="color:#00ff9d">Scénario:</span> ${a.breakout_scenario||'-'}
+        ${a.session?`&nbsp;·&nbsp;<span style="color:#6a8aaa">Session: ${a.session}</span>`:''}
       </div>
     </div>`;
   }
@@ -478,9 +497,9 @@ function renderAlertCard(a) {
           <div style="font-size:12px;color:#c8d8e8;font-family:monospace;margin-bottom:4px">${fmt(a.entry,a.pair)}</div>
           <div style="display:flex;gap:5px">
             <span class="dir-badge" style="color:${dc};border-color:${dc}44;background:${dc}12">${a.direction}</span>
-            <span style="font-size:8px;color:#3a5068">1H · ${timeAgo(a.timestamp)}</span>
+            <span style="font-size:8px;color:#00c4ff">${a.timeframe_trend||'4H'}→${a.timeframe_entry||'30min'}</span> <span style="font-size:8px;color:#3a5068">${timeAgo(a.timestamp)}</span>
           </div>
-          <div style="font-size:8px;color:#3a5068;margin-top:2px">${a.figure} · ${a.trend}</div>
+          <div style="font-size:8px;color:#3a5068;margin-top:2px">${a.figure_type||''} · ${a.trend_4h||a.trend||''}</div>
         </div>
         ${sparklineSVG(null, dc, 70, 26)}
         <div><div class="price-label">ENTRÉE</div><div class="price-val" style="color:#c8d8e8">${fmt(a.entry,a.pair)}</div></div>
@@ -510,10 +529,10 @@ function renderAlertCard(a) {
         <div style="font-size:12px;color:#c8d8e8;font-family:monospace;margin-bottom:4px">${fmt(a.entry,a.pair)}</div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="dir-badge" style="color:${dc};border-color:${dc}44;background:${dc}12">${a.direction}</span>
-          <span style="font-size:8px;color:#3a5068">1H</span>
+          <span style="font-size:8px;color:#00c4ff">${a.timeframe_trend||'4H'}→${a.timeframe_entry||'30min'}</span>
           <span style="font-size:8px;color:#3a5068">${timeAgo(a.timestamp)}</span>
         </div>
-        <div style="font-size:8px;color:#3a5068;margin-top:3px">${a.figure} · ${a.trend}</div>
+        <div style="font-size:8px;color:#3a5068;margin-top:3px">${a.entry_signal||''} · ${a.trend_4h||a.trend||''}</div>
       </div>
       <div><div class="price-label">GRAPHE</div>${sparklineSVG(null, dc)}</div>
       <div><div class="price-label">ENTRÉE</div><div class="price-val" style="color:#c8d8e8">${fmt(a.entry,a.pair)}</div></div>
@@ -663,11 +682,14 @@ function renderTabContent() {
 // ── RENDER SIDEBAR ────────────────────────────────────────────────────────────
 function renderSidebar() {
   const html = `
-    <div style="margin-bottom:22px">
-      <span class="s-label">TEMPORALITÉ</span>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${TIMEFRAMES.map(tf=>`<button class="tf-btn${state.selectedTF===tf?' active':''}" onclick="setTF('${tf}')">${tf}</button>`).join('')}
+    <div style="margin-bottom:18px;padding:10px 12px;border-radius:8px;background:rgba(0,255,157,0.05);border:1px solid rgba(0,255,157,0.15)">
+      <div style="font-size:7px;letter-spacing:3px;color:rgba(0,255,157,0.5);margin-bottom:8px">TIMEFRAMES ACTIFS</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div style="padding:4px 10px;border-radius:4px;background:rgba(0,196,255,0.12);border:1px solid rgba(0,196,255,0.3);font-size:9px;color:#00c4ff;letter-spacing:1px">4H TENDANCE</div>
+        <div style="color:#3a5068;font-size:10px">→</div>
+        <div style="padding:4px 10px;border-radius:4px;background:rgba(0,255,157,0.12);border:1px solid rgba(0,255,157,0.3);font-size:9px;color:#00ff9d;letter-spacing:1px">30MIN ENTRÉE</div>
       </div>
+      <div style="font-size:7px;color:#3a5068;margin-top:6px;letter-spacing:1px">DOW THEORY 100 BOUGIES</div>
     </div>
     <div style="margin-bottom:16px">
       <span class="s-label">SÉLECTION RAPIDE</span>
@@ -716,10 +738,7 @@ function setFilter(type, val) {
   else state.filterDir = val;
   renderTabContent();
 }
-function setTF(tf) {
-  state.selectedTF = tf;
-  renderSidebar();
-}
+// setTF removed — timeframes are fixed in backend (4H trend / 30min entry)
 function togglePair(pair) {
   if (state.selectedPairs.has(pair)) {
     if (state.selectedPairs.size > 1) state.selectedPairs.delete(pair);
