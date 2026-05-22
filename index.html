@@ -208,21 +208,21 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,12,16,.97);backdrop-
 
     <!-- STATS -->
     <div class="stats">
-      <div class="stat-card" style="border-top-color:#00c4ff44">
-        <div class="stat-label">SIGNAUX</div>
-        <div class="stat-val" id="stTotal" style="color:#00c4ff">0</div>
-      </div>
       <div class="stat-card" style="border-top-color:#00ff9d44">
-        <div class="stat-label">FORT</div>
-        <div class="stat-val" id="stStrong" style="color:#00ff9d">0</div>
+        <div class="stat-label">🟢 CONFIRME</div>
+        <div class="stat-val" id="stTotal" style="color:#00ff9d">0</div>
+      </div>
+      <div class="stat-card" style="border-top-color:#ff994444">
+        <div class="stat-label">🟠 SUR ZONE</div>
+        <div class="stat-val" id="stStrong" style="color:#ff9944">0</div>
       </div>
       <div class="stat-card" style="border-top-color:#f5c84244">
-        <div class="stat-label">MOYEN</div>
+        <div class="stat-label">🟡 EN APPROCHE</div>
         <div class="stat-val" id="stMed" style="color:#f5c842">0</div>
       </div>
-      <div class="stat-card" style="border-top-color:#ff7c5c44">
-        <div class="stat-label">FAIBLE</div>
-        <div class="stat-val" id="stWeak" style="color:#ff7c5c">0</div>
+      <div class="stat-card" style="border-top-color:#3399ff44">
+        <div class="stat-label">📊 TOTAL</div>
+        <div class="stat-val" id="stWeak" style="color:#3399ff">0</div>
       </div>
     </div>
 
@@ -366,10 +366,10 @@ async function refreshPrices(){
 
 // ── STATS ──────────────────────────────────────────────────────────────────
 function updateStats(sigs){
-  document.getElementById("stTotal").textContent  = sigs.length;
-  document.getElementById("stStrong").textContent = sigs.filter(s=>s.strength==="FORT").length;
-  document.getElementById("stMed").textContent    = sigs.filter(s=>s.strength==="MOYEN").length;
-  document.getElementById("stWeak").textContent   = sigs.filter(s=>s.strength==="FAIBLE").length;
+  document.getElementById("stTotal").textContent  = sigs.filter(s=>s.alert_level==="CONFIRME").length;
+  document.getElementById("stStrong").textContent = sigs.filter(s=>s.alert_level==="SUR_ZONE").length;
+  document.getElementById("stMed").textContent    = sigs.filter(s=>s.alert_level==="EN_APPROCHE").length;
+  document.getElementById("stWeak").textContent   = sigs.length;
 }
 
 function updateTicker(prices){
@@ -456,15 +456,15 @@ function renderTabContent(){
 
   if(S.activeTab==="alerts"){
     const filtered=S.signals.filter(a=>{
-      if(S.filterStrength!=="ALL" && a.strength!==S.filterStrength) return false;
+      if(S.filterStrength!=="ALL" && a.alert_level!==S.filterStrength) return false;
       if(S.filterDir!=="ALL" && a.direction!==S.filterDir) return false;
       return true;
     });
 
     const filters=`
       <div class="filter-row">
-        <span style="font-size:7px;color:#3a5068">FORCE:</span>
-        ${[["ALL","ALL"],["FORT","FORT"],["MOYEN","MOY"],["FAIBLE","FAIB"]].map(([v,l])=>
+        <span style="font-size:7px;color:#3a5068">NIVEAU:</span>
+        ${[["ALL","TOUT"],["CONFIRME","🟢 CONFIRME"],["SUR_ZONE","🟠 SUR ZONE"],["EN_APPROCHE","🟡 APPROCHE"]].map(([v,l])=>
           `<button class="fbtn${S.filterStrength===v?" active":""}" onclick="setFilter('s','${v}')">${l}</button>`
         ).join("")}
         <div style="width:1px;height:12px;background:#1c2a38;margin:0 2px"></div>
@@ -579,82 +579,162 @@ function renderCard(a){
   const sCol=sc(a.strength), dCol=dc(a.direction);
   const isMob=S.isMobile();
 
-  if(isMob) return `<div class="alert-card" style="border-left-color:${sCol}">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+  const alColors = {"EN_APPROCHE":"#f5c842","SUR_ZONE":"#ff9944","CONFIRME":"#00ff9d"};
+  const alEmojis = {"EN_APPROCHE":"🟡","SUR_ZONE":"🟠","CONFIRME":"🟢"};
+  const alLabels = {"EN_APPROCHE":"EN APPROCHE","SUR_ZONE":"SUR LA ZONE","CONFIRME":"SIGNAL CONFIRME"};
+  const alCol = alColors[a.alert_level] || sCol;
+  const alEmoji = alEmojis[a.alert_level] || "⚪";
+  const alLabel = alLabels[a.alert_level] || "";
+
+  if(isMob) return `<div class="alert-card" style="border-left-color:${alCol};border-left-width:4px">
+    <!-- NIVEAU ALERTE -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid #1a2a3a">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:13px">${alEmoji}</span>
+        <span style="font-size:9px;font-weight:700;letter-spacing:1px;color:${alCol}">${alLabel}</span>
+      </div>
+      <div style="display:flex;gap:5px">
+        <span class="dir-badge" style="color:${dCol};border-color:${dCol}44;background:${dCol}12">${a.direction}</span>
+        <span style="font-size:8px;color:#00c4ff;background:rgba(0,196,255,.08);padding:2px 6px;border-radius:3px">${a.timeframe}</span>
+      </div>
+    </div>
+
+    <!-- PAIRE + SCORE -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px">
       <div>
-        <div style="font-size:16px;font-weight:700;color:#e8f4ff;font-family:monospace">${a.pair}</div>
-        <div style="font-size:11px;color:#c8d8e8;font-family:monospace;margin:3px 0">${fmtP(a.entry,a.pair)}</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">
-          <span class="dir-badge" style="color:${dCol};border-color:${dCol}44;background:${dCol}12">${a.direction}</span>
-          <span style="font-size:8px;color:#00c4ff;background:rgba(0,196,255,.08);padding:2px 6px;border-radius:3px">${a.timeframe}</span>
-          <span class="candle-badge">${a.candle_emoji} ${a.candle_type}</span>
+        <div style="font-size:17px;font-weight:700;color:#e8f4ff;font-family:monospace">${a.pair}</div>
+        <div style="font-size:11px;color:#c8d8e8;font-family:monospace">${fmtP(a.current_price,a.pair)}</div>
+        <div style="font-size:7px;color:#3a5068;margin-top:2px">
+          Zone: <span style="color:#f5c842">${fmtP(a.price_zone,a.pair)}</span>
+          · Distance: <span style="color:${a.distance_pct<=0.3?"#00ff9d":a.distance_pct<=1.0?"#f5c842":"#ff9944"}">${a.distance_pct}%</span>
         </div>
-        <div style="font-size:7px;color:#3a5068;margin-top:3px">${a.figure_type} · ${a.trend} · ${ago(a.timestamp)}</div>
+        <div style="font-size:7px;color:#3a5068;margin-top:2px">${a.figure_type} · ${a.zone_touches} retests</div>
+        ${a.candle_type?`<div style="margin-top:5px"><span class="candle-badge">${a.candle_emoji} ${a.candle_type}</span></div>`:""}
       </div>
       <div style="text-align:right">
         <div class="strength-badge" style="color:${sCol};border-color:${sCol}44;background:${sCol}12">${a.strength}</div>
-        <div class="score-wrap" style="width:48px;margin-left:auto;margin-top:4px"><div class="score-fill" style="width:${a.score}%;background:${sCol}"></div></div>
+        <div class="score-wrap" style="width:48px;margin-left:auto;margin-top:3px"><div class="score-fill" style="width:${a.score}%;background:${sCol}"></div></div>
         <div style="font-size:7px;color:#3a5068;margin-top:2px">${a.score}/100</div>
+        <div style="font-size:7px;color:#3a5068;margin-top:2px">${ago(a.timestamp)}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-      <div><div class="price-lbl">ENTRÉE</div><div style="font-size:10px;font-family:monospace;color:#c8d8e8">${fmtP(a.entry,a.pair)}</div></div>
+
+    <!-- SL/TP si disponibles -->
+    ${a.entry?`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px">
+      <div><div class="price-lbl">ENTREE</div><div style="font-size:10px;font-family:monospace;color:#ffffff">${fmtP(a.entry,a.pair)}</div></div>
       <div><div class="price-lbl">STOP LOSS</div><div style="font-size:10px;font-family:monospace;color:#ff5c7c">${fmtP(a.stop_loss,a.pair)}</div></div>
       <div><div class="price-lbl">TAKE PROFIT</div><div style="font-size:10px;font-family:monospace;color:#00ff9d">${fmtP(a.take_profit,a.pair)}</div></div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div><div class="price-lbl">R/R</div><div style="font-size:16px;font-weight:700;font-family:monospace;color:${a.ratio>=3?"#00ff9d":"#f5c842"}">${a.ratio}:1</div></div>
-      <div class="info-row" style="flex:1;margin-left:10px">
-        Zone ${a.zone_type} · ${a.zone_touches} retests · Qualité ${a.zone_quality}%<br>
-        MM100 ${a.mm100_pos||"—"} · ${a.figure_type}<br>
-        ${a.tp_fantome?`⚠️ TP fantôme: ${a.tp_fantome}`:""}
-      </div>
+      ${a.tp_fantome?`<div style="font-size:8px;color:#ff9944">⚠ TP fantome: ${a.tp_fantome}</div>`:""}
     </div>
+    `:""}
+
+    <!-- CE QUI MANQUE -->
+    ${a.manque&&a.manque.length?`
+    <div style="background:rgba(245,200,66,.05);border:1px solid rgba(245,200,66,.2);border-radius:6px;padding:9px 10px">
+      <div style="font-size:7px;letter-spacing:2px;color:#f5c842;margin-bottom:6px">POUR CONFIRMER :</div>
+      ${a.manque.map(m=>`<div style="font-size:8px;color:#c8d8e8;margin-bottom:4px;line-height:1.5">→ ${m}</div>`).join("")}
+    </div>
+    `:`
+    <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.2);border-radius:6px;padding:9px 10px">
+      <div style="font-size:8px;color:#00ff9d;font-weight:600">✓ CONFIRMATION COMPLETE</div>
+      <div style="font-size:8px;color:#6a8aaa;margin-top:3px">Verifiez sur TradingView avant d'entrer.</div>
+    </div>
+    `}
   </div>`;
 
   // Desktop
-  return `<div class="alert-card" style="border-left-color:${sCol}">
-    <div style="display:grid;grid-template-columns:180px 110px 110px 80px 70px 1fr;gap:14px;align-items:center">
+  const alColors = {"EN_APPROCHE":"#f5c842","SUR_ZONE":"#ff9944","CONFIRME":"#00ff9d"};
+  const alEmojis = {"EN_APPROCHE":"🟡","SUR_ZONE":"🟠","CONFIRME":"🟢"};
+  const alLabels = {"EN_APPROCHE":"EN APPROCHE","SUR_ZONE":"SUR LA ZONE","CONFIRME":"SIGNAL CONFIRME"};
+  const alCol = alColors[a.alert_level] || sCol;
+  const alEmoji = alEmojis[a.alert_level] || "⚪";
+  const alLabel = alLabels[a.alert_level] || "";
+
+  return `<div class="alert-card" style="border-left-color:${alCol};border-left-width:4px">
+    <!-- BADGE NIVEAU ALERTE -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #1a2a3a">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px">${alEmoji}</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:2px;color:${alCol}">${alLabel}</span>
+        <span style="font-size:8px;color:#00c4ff;background:rgba(0,196,255,.08);padding:2px 8px;border-radius:3px;letter-spacing:1px">${a.timeframe}</span>
+        <span class="dir-badge" style="color:${dCol};border-color:${dCol}44;background:${dCol}12">${a.direction}</span>
+      </div>
+      <div style="text-align:right">
+        <div class="strength-badge" style="color:${sCol};border-color:${sCol}44;background:${sCol}12">${a.strength}</div>
+        <div class="score-wrap" style="width:60px;margin-left:auto;margin-top:3px"><div class="score-fill" style="width:${a.score}%;background:${sCol}"></div></div>
+        <div style="font-size:7px;color:#3a5068;margin-top:2px">${a.score}/100 · ${ago(a.timestamp)}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:160px 120px 130px 90px 1fr;gap:14px;align-items:start">
+      <!-- PAIRE -->
       <div>
-        <div style="font-size:15px;font-weight:700;color:#e8f4ff;font-family:monospace;margin-bottom:2px">${a.pair}</div>
-        <div style="font-size:11px;color:#c8d8e8;font-family:monospace;margin-bottom:5px">${fmtP(a.entry,a.pair)}</div>
-        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-          <span class="dir-badge" style="color:${dCol};border-color:${dCol}44;background:${dCol}12">${a.direction}</span>
-          <span style="font-size:8px;color:#00c4ff;background:rgba(0,196,255,.08);padding:2px 6px;border-radius:3px">${a.timeframe}</span>
+        <div style="font-size:18px;font-weight:700;color:#e8f4ff;font-family:monospace">${a.pair}</div>
+        <div style="font-size:12px;color:#c8d8e8;font-family:monospace;margin:3px 0">${fmtP(a.current_price,a.pair)}</div>
+        <div style="font-size:7px;color:#3a5068;margin-top:4px">
+          Distance zone: <span style="color:${a.distance_pct<=0.3?"#00ff9d":a.distance_pct<=1.0?"#f5c842":"#ff9944"}">${a.distance_pct}%</span>
         </div>
-        <div style="margin-top:4px"><span class="candle-badge">${a.candle_emoji} ${a.candle_type}</span></div>
-        <div style="font-size:7px;color:#3a5068;margin-top:3px">${a.figure_type} · ${ago(a.timestamp)}</div>
+        ${a.candle_type?`<div style="margin-top:6px"><span class="candle-badge">${a.candle_emoji} ${a.candle_type}</span></div>`:""}
+        <div style="font-size:7px;color:#3a5068;margin-top:4px">${a.figure_type}</div>
       </div>
+
+      <!-- SL / TP -->
       <div>
-        <div class="price-lbl">S/L</div>
-        <div style="font-size:11px;font-family:monospace;color:#ff5c7c">${fmtP(a.stop_loss,a.pair)}</div>
-        <div class="price-lbl" style="margin-top:6px">T/P</div>
+        ${a.entry?`
+        <div class="price-lbl">ENTREE</div>
+        <div style="font-size:11px;font-family:monospace;color:#ffffff;margin-bottom:5px">${fmtP(a.entry,a.pair)}</div>
+        <div class="price-lbl">STOP LOSS</div>
+        <div style="font-size:11px;font-family:monospace;color:#ff5c7c;margin-bottom:5px">${fmtP(a.stop_loss,a.pair)}</div>
+        <div class="price-lbl">TAKE PROFIT</div>
         <div style="font-size:11px;font-family:monospace;color:#00ff9d">${fmtP(a.take_profit,a.pair)}</div>
+        `:`<div style="font-size:8px;color:#3a5068;padding:8px 0">Entree disponible<br>apres confirmation</div>`}
       </div>
+
+      <!-- ZONE -->
       <div>
         <div class="price-lbl">ZONE ${a.zone_type}</div>
-        <div style="font-size:11px;font-family:monospace;color:#f5c842">${fmtP(a.price_zone,a.pair)}</div>
-        <div style="font-size:7px;color:#3a5068;margin-top:3px">${a.zone_touches} retests · ${a.zone_quality}%</div>
-        <div style="font-size:7px;color:${a.zone_psych?"#a78bff":"#3a5068"};margin-top:2px">${a.zone_psych?"🔢 Niveau psy":""}</div>
+        <div style="font-size:13px;font-family:monospace;color:#f5c842;font-weight:600">${fmtP(a.price_zone,a.pair)}</div>
+        <div style="font-size:7px;color:#3a5068;margin-top:3px">${a.zone_touches} retests · qualité ${a.zone_quality}%</div>
+        ${a.zone_psych?`<div style="font-size:7px;color:#a78bff;margin-top:2px">● Niveau psychologique</div>`:""}
+        <div style="font-size:7px;color:#3a5068;margin-top:5px">MM100: <span style="color:#3399ff">${a.mm100_pos||"—"}</span></div>
+        ${a.tp_fantome?`<div style="font-size:7px;color:#ff9944;margin-top:3px">⚠ TP fantome: ${a.tp_fantome}</div>`:""}
       </div>
+
+      <!-- R/R -->
       <div>
+        ${a.ratio?`
         <div class="price-lbl">R/R</div>
-        <div style="font-size:20px;font-weight:700;font-family:monospace;color:${a.ratio>=3?"#00ff9d":"#f5c842"}">${a.ratio}:1</div>
-        <div style="font-size:7px;color:#3a5068;margin-top:3px">ATR ${fmtP(a.atr,a.pair)}</div>
+        <div style="font-size:22px;font-weight:700;font-family:monospace;color:${a.ratio>=3?"#00ff9d":"#f5c842"}">${a.ratio}:1</div>
+        <div style="font-size:7px;color:#3a5068;margin-top:3px">ATR: ${fmtP(a.atr,a.pair)}</div>
+        `:`<div style="font-size:8px;color:#3a5068;padding:8px 0">R/R calculé<br>apres confirmation</div>`}
       </div>
-      <div style="text-align:center">
-        <div class="strength-badge" style="color:${sCol};border-color:${sCol}44;background:${sCol}12;display:block;text-align:center">${a.strength}</div>
-        <div class="score-wrap" style="margin-top:4px"><div class="score-fill" style="width:${a.score}%;background:${sCol}"></div></div>
-        <div style="font-size:7px;color:#3a5068;margin-top:2px">${a.score}/100</div>
-      </div>
+
+      <!-- CE QUI MANQUE -->
       <div>
-        <div class="info-row">
-          <span style="color:#00c4ff">Tendance:</span> ${a.trend} · Force ${a.trend_force}%<br>
-          <span style="color:#a78bff">MM100:</span> ${a.mm100_pos||"—"} (${a.mm100||"—"})<br>
-          <span style="color:#f5c842">Figure:</span> ${a.figure_type}<br>
-          <span style="color:#00ff9d">Zone:</span> ${a.zone_type} · ${a.zone_touches} retests<br>
-          ${a.tp_fantome?`<span style="color:#ff7c5c">⚠️ TP fantôme:</span> ${a.tp_fantome}<br>`:""}
-          ${a.psych_levels&&a.psych_levels.length?`<span style="color:#3a5068">Psy:</span> ${a.psych_levels.slice(0,3).join(" · ")}`:""}
+        ${a.manque && a.manque.length ? `
+        <div style="background:rgba(245,200,66,.05);border:1px solid rgba(245,200,66,.2);border-radius:7px;padding:10px 12px">
+          <div style="font-size:7px;letter-spacing:2px;color:#f5c842;margin-bottom:7px">POUR CONFIRMER :</div>
+          ${a.manque.map(m=>`
+            <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:5px">
+              <span style="color:#f5c842;font-size:9px;flex-shrink:0">→</span>
+              <span style="font-size:8px;color:#c8d8e8;line-height:1.5">${m}</span>
+            </div>
+          `).join("")}
+        </div>
+        ` : `
+        <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.2);border-radius:7px;padding:10px 12px">
+          <div style="font-size:7px;letter-spacing:2px;color:#00ff9d;margin-bottom:5px">CONFIRMATION COMPLETE ✓</div>
+          <div style="font-size:8px;color:#c8d8e8">Toutes les conditions validees.<br>Verifiez sur TradingView.</div>
+          ${a.psych_levels&&a.psych_levels.length?`<div style="font-size:7px;color:#3a5068;margin-top:6px">Psy: ${a.psych_levels.slice(0,3).join(" | ")}</div>`:""}
+        </div>
+        `}
+        <div style="font-size:7px;color:#3a5068;margin-top:6px">
+          Tendance: ${a.trend} · Force ${a.trend_force}%<br>
+          Session: ${a.session||"—"}
         </div>
       </div>
     </div>
