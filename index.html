@@ -808,7 +808,7 @@ function renderTab() {
   if (S.activeTab === 'strategy') {
     const steps = [
       {n:'01',icon:'📈',c:'#3b82f6',t:'IDENTIFIER LA TENDANCE',d:'Sur le TF sélectionné (H4→M30), identifier une tendance haussière (HH+HL) ou baissière (LH+LL) selon Dow Theory. MM100 plate ou dans le sens obligatoire.'},
-      {n:'02',icon:'🔄',c:'#8b5cf6',t:'FIGURE DE RETOURNEMENT',d:'Repérer un triangle ou une consolidation EN FIN de tendance sur les 15 dernières bougies. Confirme le retournement imminent.'},
+      {n:'02',icon:'🔄',c:'#8b5cf6',t:'FIGURE DE RETOURNEMENT',d:'Repérer un triangle (≥50 bougies) ou une consolidation (≥30 bougies) EN FIN de tendance. En dessous de ces seuils, le marché n\'a pas accumulé assez d\'ordres pour générer un mouvement puissant. Triangle fiable entre 50-100 bougies, consolidation entre 30-50 bougies.'},
       {n:'03',icon:'📐',c:'#f59e0b',t:'ZONE DE PRIX',d:'Zone de support ou résistance testée minimum 2 fois (retests) ou top/bottom historique. Plus de retests = zone plus forte.'},
       {n:'04',icon:'🎯',c:'#f97316',t:'ZONES PSYCHOLOGIQUES + TP',d:'Identifier niveaux ronds et zones dangereuses entre entrée et objectif. Positionner le TP avant la première zone dangereuse. Repérer le TP fantôme.'},
       {n:'05',icon:'⚡',c:'#00e87a',t:'BOUGIE DE CONFIRMATION',d:'Attendre une bougie à forte probabilité : Englobante, Pin Bar, Marubozu, Marteau ou Cassure (corps ≥ 55%). SL sous dernier HH/LL. R/R ≥ 2.5. Horaire 8h-21h.'},
@@ -957,7 +957,11 @@ function renderCard(a) {
           <div style="font-size:8px;font-family:var(--mono);color:var(--text3)">
             Dist: <span style="color:${a.distance_pct<=0.3?'var(--green)':a.distance_pct<=1?'var(--yellow)':'var(--orange)'}">${a.distance_pct}%</span>
           </div>
-          <div style="font-size:8px;color:var(--text3);margin-top:3px">${a.figure_type}</div>
+          <div style="font-size:8px;color:var(--text3);margin-top:3px">
+            ${a.figure_type}
+            ${a.figure_candles?`<span style="color:var(--purple);margin-left:4px">${a.figure_candles} bougies</span>`:''}
+            ${a.figure_reliability?`<span style="color:${a.figure_reliability==='HAUTE'?'var(--green)':'var(--yellow)'};margin-left:4px">[${a.figure_reliability}]</span>`:''}
+          </div>
         </div>
 
         <!-- SL/TP -->
