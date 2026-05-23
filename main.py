@@ -122,26 +122,107 @@ def detect_trend(candles, tf):
 # ÉTAPE 2 — FIGURE DE RETOURNEMENT EN FIN DE TENDANCE
 # ══════════════════════════════════════════════════════════════════════════════
 def detect_figure(candles, trend):
-    if len(candles) < 25: return {"found": False}
-    fig  = candles[-15:]
-    prev = candles[-40:-15]
-    if len(prev) < 8: return {"found": False}
-    fh, fl = [c["high"] for c in fig], [c["low"] for c in fig]
-    ph, pl = [c["high"] for c in prev],[c["low"]  for c in prev]
-    trend_ok = (max(ph[:5])>max(ph[-5:])) if trend=="BAISSIERE" else (min(pl[:5])<min(pl[-5:]))
-    if not trend_ok: return {"found": False}
-    n = len(fig)
-    top_slope = (fh[-1]-fh[0])/n
-    bot_slope = (fl[-1]-fl[0])/n
-    range_pct = (max(fh)-min(fl))/fig[-1]["close"]*100
-    is_tri  = top_slope<-0.000005 and bot_slope>0.000005 and range_pct<2.0
-    is_cons = range_pct < 0.8
-    if not is_tri and not is_cons: return {"found": False}
+    """
+    Étape 2 — Figure de retournement / consolidation.
+
+    Règles statistiques (20 ans de backtests) :
+    - TRIANGLE     : 50 à 100 bougies minimum pour être fiable
+    - CONSOLIDATION: 30 à 50  bougies minimum pour accumuler assez d'ordres
+    - En dessous de 30 bougies → figure non valide (pas assez d'ordres accumulés)
+
+    La figure doit être EN FIN de tendance (les dernières bougies)
+    précédée d'une tendance claire (bougies avant la figure).
+    """
+    if len(candles) < 60:
+        return {"found": False, "reason": "Pas assez de données (min 60 bougies)"}
+
+    # ── TRIANGLE : analyse sur 50 à 100 dernières bougies ────────────────────
+    for window in [100, 80, 60, 50]:
+        if len(candles) < window + 10:
+            continue
+        fig_candles  = candles[-window:]
+        prev_candles = candles[-(window+20):-window]
+        if len(prev_candles) < 10:
+            continue
+
+        fh = [c["high"] for c in fig_candles]
+        fl = [c["low"]  for c in fig_candles]
+        ph = [c["high"] for c in prev_candles]
+        pl = [c["low"]  for c in prev_candles]
+
+        # Vérifier qu'il y avait une tendance AVANT la figure
+        if trend == "BAISSIERE":
+            trend_ok = max(ph[:5]) > max(ph[-5:])
+        else:
+            trend_ok = min(pl[:5]) < min(pl[-5:])
+        if not trend_ok:
+            continue
+
+        n_fig     = len(fig_candles)
+        top_slope = (fh[-1] - fh[0]) / n_fig
+        bot_slope = (fl[-1] - fl[0]) / n_fig
+        range_pct = (max(fh) - min(fl)) / fig_candles[-1]["close"] * 100
+
+        # TRIANGLE : convergence tops/bottoms sur ≥50 bougies
+        is_triangle = (
+            top_slope < -0.000003 and
+            bot_slope >  0.000003 and
+            range_pct < 3.0 and
+            window >= 50
+        )
+        if is_triangle:
+            return {
+                "found":      True,
+                "type":       "TRIANGLE",
+                "nb_candles": window,
+                "zone_high":  round(max(fh), 5),
+                "zone_low":   round(min(fl), 5),
+                "range_pct":  round(range_pct, 3),
+                "reliability": "HAUTE" if window >= 80 else "MOYENNE",
+            }
+
+    # ── CONSOLIDATION : analyse sur 30 à 50 dernières bougies ────────────────
+    for window in [50, 40, 30]:
+        if len(candles) < window + 10:
+            continue
+        fig_candles  = candles[-window:]
+        prev_candles = candles[-(window+20):-window]
+        if len(prev_candles) < 8:
+            continue
+
+        fh = [c["high"] for c in fig_candles]
+        fl = [c["low"]  for c in fig_candles]
+        ph = [c["high"] for c in prev_candles]
+        pl = [c["low"]  for c in prev_candles]
+
+        if trend == "BAISSIERE":
+            trend_ok = max(ph[:5]) > max(ph[-5:])
+        else:
+            trend_ok = min(pl[:5]) < min(pl[-5:])
+        if not trend_ok:
+            continue
+
+        range_pct = (max(fh) - min(fl)) / fig_candles[-1]["close"] * 100
+
+        # CONSOLIDATION : range serré sur ≥30 bougies
+        is_consolidation = (
+            range_pct < 1.5 and
+            window >= 30
+        )
+        if is_consolidation:
+            return {
+                "found":      True,
+                "type":       "CONSOLIDATION",
+                "nb_candles": window,
+                "zone_high":  round(max(fh), 5),
+                "zone_low":   round(min(fl), 5),
+                "range_pct":  round(range_pct, 3),
+                "reliability": "HAUTE" if window >= 40 else "MOYENNE",
+            }
+
     return {
-        "found": True,
-        "type": "TRIANGLE" if is_tri else "CONSOLIDATION",
-        "zone_high": round(max(fh),5), "zone_low": round(min(fl),5),
-        "range_pct": round(range_pct,3),
+        "found":  False,
+        "reason": "Aucune figure valide (triangle ≥50 bougies ou consolidation ≥30 bougies)"
     }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -359,9 +440,11 @@ def analyze_full(candles, tf, pair):
         "mm100_pos":    trend.get("mm100_pos"),
         "mm100_slope":  trend.get("mm100_slope"),
 
-        "figure_type":  figure["type"],
-        "zone_high":    figure["zone_high"],
-        "zone_low":     figure["zone_low"],
+        "figure_type":     figure["type"],
+        "figure_candles":  figure.get("nb_candles", 0),
+        "figure_reliability": figure.get("reliability", "—"),
+        "zone_high":       figure["zone_high"],
+        "zone_low":        figure["zone_low"],
 
         "price_zone":   zone["level"],
         "zone_type":    zone["type"],
@@ -744,6 +827,46 @@ async def scheduler():
 @app.on_event("startup")
 async def startup():
     asyncio.create_task(scheduler())
+    # Message de démarrage sur Telegram
+    asyncio.create_task(send_startup_message())
+
+async def send_startup_message():
+    """Envoie un message de bienvenue sur Telegram au démarrage du serveur."""
+    await asyncio.sleep(3)  # Attendre que le serveur soit prêt
+    now = datetime.now(timezone.utc)
+    hp  = (now.hour + 2) % 24
+    session = "LONDON" if 9 <= hp <= 17 else ("NEW YORK" if hp <= 21 else "HORS SESSION")
+    window  = "ACTIVE (8h-21h)" if 8 <= hp <= 21 else f"INACTIVE ({hp}h Paris)"
+
+    msg = (
+        f"🎯 <b>Sophie Trading — Double Structure v7.0</b>\n"
+        f"{'━'*26}\n"
+        f"✅ <b>Serveur en ligne</b> · {now.strftime('%d/%m/%Y %H:%M')} UTC\n"
+        f"📡 Session actuelle : <b>{session}</b>\n"
+        f"⏰ Fenêtre de trading : <b>{window}</b>\n\n"
+
+        f"<b>Algorithme configuré :</b>\n"
+        f"  • 26 paires analysées (7 maj + 19 min)\n"
+        f"  • 4 timeframes : 4H · 2H · 1H · 30min\n"
+        f"  • 6 étapes Double Structure\n"
+        f"  • Figure : Triangle ≥50 bougies | Consolidation ≥30 bougies\n"
+        f"  • 3 niveaux d'alerte : 🟡 Approche · 🟠 Zone · 🟢 Confirmé\n"
+        f"  • Graphique envoyé sur chaque signal\n"
+        f"  • Anti-spam : 1 alerte unique par setup\n\n"
+
+        f"<b>Rappel des règles clés :</b>\n"
+        f"  ✅ Zone ≥ 2 retests avant d'entrer\n"
+        f"  ✅ R/R minimum 2.5:1\n"
+        f"  ✅ Bougie de confirmation obligatoire\n"
+        f"  ✅ Entrées entre 8h et 21h (Paris) uniquement\n"
+        f"  ❌ Jamais entrer sur une bougie en cours\n"
+        f"  ❌ Si réintégration de zone = signal invalidé\n\n"
+
+        f"📊 <b>Cliquez SCANNER sur le dashboard pour lancer l'analyse.</b>\n"
+        f"Les alertes arriveront ici automatiquement.\n\n"
+        f"<i>Bonne session de trading ! 🚀</i>"
+    )
+    await send_telegram(msg)
 
 # ── API ROUTES ─────────────────────────────────────────────────────────────────
 @app.get("/api/prices")
