@@ -37,7 +37,10 @@ cache = {
 }
 
 TF_INTERVAL = {"4H":"4h","2H":"2h","1H":"1h","30min":"30min"}
-TF_SIZE     = {"4H":1250,"2H":1250,"1H":1250,"30min":1250}
+# 300 bougies = 50 jours H4 / 25 jours H2 / 12 jours H1 / 6 jours 30min
+# Suffisant pour Dow Theory + figures + zones avec 75% d'économie de quota
+# Passer à 1250 si vous avez le plan Basic ($8/mois)
+TF_SIZE     = {"4H":300,"2H":300,"1H":300,"30min":300}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # UTILITAIRES
@@ -856,8 +859,9 @@ async def send_startup_message():
         f"<b>Algorithme configuré :</b>\n"
         f"  • 26 paires analysées (7 maj + 19 min)\n"
         f"  • 4 timeframes : 4H · 2H · 1H · 30min\n"
-        f"  • Analyse sur 1250 bougies par TF\n"
-        f"    (4H=7 mois · 2H=3.5 mois · 1H=52j · 30min=26j)\n"
+        f"  • Analyse sur 300 bougies par TF\n"
+        f"    (4H=50j · 2H=25j · 1H=12j · 30min=6j)\n"
+        f"  • Passer à 1250 bougies avec plan Basic $8/mois\n"
         f"  • 6 étapes Double Structure\n"
         f"  • Figure : Triangle ≥50 bougies | Consolidation ≥30 bougies\n"
         f"  • 3 niveaux d'alerte : 🟡 Approche · 🟠 Zone · 🟢 Confirmé\n"
