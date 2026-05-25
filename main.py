@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-app = FastAPI(title="Sophie Trading — Double Structure v7.0")
+app = FastAPI(title="Sophie Trading — Double Structure v7.1 — 1250 bougies")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 TWELVE_DATA_KEY  = os.getenv("TWELVE_DATA_KEY", "0a71d306b7f64336950805189681a0a2")
@@ -37,7 +37,7 @@ cache = {
 }
 
 TF_INTERVAL = {"4H":"4h","2H":"2h","1H":"1h","30min":"30min"}
-TF_SIZE     = {"4H":110,"2H":80,"1H":60,"30min":50}
+TF_SIZE     = {"4H":1250,"2H":1250,"1H":1250,"30min":1250}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # UTILITAIRES
@@ -88,8 +88,11 @@ async def is_near_economic_event():
 def detect_trend(candles, tf):
     if len(candles) < 20:
         return {"trend": "NEUTRE", "tf": tf}
+    # Utiliser les 500 dernières bougies pour la tendance Dow
+    # (assez pour capturer cycles majeurs sans bruit excessif)
+    candles_trend = candles[-500:] if len(candles) > 500 else candles
     mm100 = calc_mm100(candles)
-    highs, lows = find_pivots(candles, n=3)
+    highs, lows = find_pivots(candles_trend, n=3)
     if len(highs) < 2 or len(lows) < 2:
         return {"trend": "NEUTRE", "tf": tf, "mm100": mm100}
     sh, sl = highs[-2:], lows[-2:]
@@ -137,7 +140,7 @@ def detect_figure(candles, trend):
         return {"found": False, "reason": "Pas assez de données (min 60 bougies)"}
 
     # ── TRIANGLE : analyse sur 50 à 100 dernières bougies ────────────────────
-    for window in [100, 80, 60, 50]:
+    for window in [200, 150, 100, 80, 60, 50]:
         if len(candles) < window + 10:
             continue
         fig_candles  = candles[-window:]
@@ -182,7 +185,7 @@ def detect_figure(candles, trend):
             }
 
     # ── CONSOLIDATION : analyse sur 30 à 50 dernières bougies ────────────────
-    for window in [50, 40, 30]:
+    for window in [100, 80, 60, 50, 40, 30]:
         if len(candles) < window + 10:
             continue
         fig_candles  = candles[-window:]
@@ -230,7 +233,10 @@ def detect_figure(candles, trend):
 # ══════════════════════════════════════════════════════════════════════════════
 def detect_zone(candles, trend, pair):
     if len(candles) < 30: return None
-    highs, lows = find_pivots(candles[:-5], n=2)
+    # Analyser les 800 dernières bougies pour les zones S/R
+    # (plus d'historique = zones plus fiables avec plus de retests)
+    candles_zone = candles[-800:] if len(candles) > 800 else candles
+    highs, lows = find_pivots(candles_zone[:-5], n=2)
     candidates  = lows if trend=="BAISSIERE" else highs
     if not candidates: return None
     best, best_score = None, 0
@@ -271,9 +277,11 @@ def detect_psych_zones(candles, direction, pair):
         if (direction=="LONG" and v>last) or (direction=="SHORT" and v<last):
             psych.append(v)
         if len(psych)>=5: break
-    highs, lows = find_pivots(candles[:-5], n=2)
+    # Analyser les 300 dernières bougies pour zones psychologiques
+    candles_psych = candles[-300:] if len(candles) > 300 else candles
+    highs, lows = find_pivots(candles_psych[:-5], n=2)
     danger = []
-    for p in (highs if direction=="LONG" else lows)[-10:]:
+    for p in (highs if direction=="LONG" else lows)[-15:]:
         if direction=="LONG" and p["price"]>last: danger.append(round(p["price"],prec))
         elif direction=="SHORT" and p["price"]<last: danger.append(round(p["price"],prec))
     return {"psych_levels":sorted(psych[:4]),"danger_zones":sorted(danger[:3]),
@@ -328,7 +336,7 @@ def calc_sl_tp(candles, trend_data, direction, pair):
     last  = candles[-1]
     entry = last["close"]
     prec  = dp(pair)
-    atr   = sum(c["high"]-c["low"] for c in candles[-14:])/min(14,len(candles))
+    atr   = sum(c["high"]-c["low"] for c in candles[-20:])/min(20,len(candles))
     if direction=="LONG":
         sl_base = trend_data.get("last_low", entry-atr*2)
         mm100   = trend_data.get("mm100")
@@ -724,7 +732,7 @@ async def send_telegram_chart(signal, chart_bytes):
 # ══════════════════════════════════════════════════════════════════════════════
 # TWELVE DATA
 # ══════════════════════════════════════════════════════════════════════════════
-async def fetch_candles(pair, interval, outputsize=110):
+async def fetch_candles(pair, interval, outputsize=1250):
     symbol = pair.replace("/","")
     try:
         async with httpx.AsyncClient(timeout=15) as cl:
@@ -848,6 +856,8 @@ async def send_startup_message():
         f"<b>Algorithme configuré :</b>\n"
         f"  • 26 paires analysées (7 maj + 19 min)\n"
         f"  • 4 timeframes : 4H · 2H · 1H · 30min\n"
+        f"  • Analyse sur 1250 bougies par TF\n"
+        f"    (4H=7 mois · 2H=3.5 mois · 1H=52j · 30min=26j)\n"
         f"  • 6 étapes Double Structure\n"
         f"  • Figure : Triangle ≥50 bougies | Consolidation ≥30 bougies\n"
         f"  • 3 niveaux d'alerte : 🟡 Approche · 🟠 Zone · 🟢 Confirmé\n"
@@ -886,7 +896,7 @@ async def get_signals():
 @app.get("/api/status")
 async def get_status():
     return JSONResponse({
-        "status":"online","version":"7.0-double-structure",
+        "status":"online","version":"7.1-double-structure-1250",
         "strategy":"3 niveaux: EN_APPROCHE | SUR_ZONE | CONFIRME",
         "last_update":cache["last_update"],
         "telegram_ok":bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID),
