@@ -8,6 +8,6 @@ services:
       - key: TWELVE_DATA_KEY
         value: 0a71d306b7f64336950805189681a0a2
       - key: TELEGRAM_TOKEN
-        value: "8637347101:AAG7i7-hGo8JcM8oULt8qRF3FN4hEDS5318"
+        value: "8637347101:AAEXQRciGZdFSGloMMYFVfI4sTYS5BGzQP0"
       - key: TELEGRAM_CHAT_ID
         value: "5650372889"
