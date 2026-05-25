@@ -30,11 +30,29 @@ cache = {
     "signals":       {},      # {tf: [signals]}
     "candles_cache": {},      # {pair_tf: candles}
     "last_update":   None,
-    # Alertes déjà envoyées — évite les doublons
-    # clé : "PAIR_TF_ZONE_LEVEL_ALERT_TYPE"
     "sent_alerts":   set(),
     "last_notification": None,
+    # Suivi quota API
+    "api_calls_today": 0,
+    "api_calls_reset": None,
 }
+
+def track_api_call(n=1):
+    """Compte les appels API pour éviter de dépasser le quota."""
+    now = datetime.now(timezone.utc)
+    # Reset compteur chaque jour à 00h00 UTC
+    if cache["api_calls_reset"]:
+        last = datetime.fromisoformat(cache["api_calls_reset"])
+        if (now - last).total_seconds() > 86400:
+            cache["api_calls_today"] = 0
+            cache["api_calls_reset"] = now.isoformat()
+    else:
+        cache["api_calls_reset"] = now.isoformat()
+    cache["api_calls_today"] += n
+    # Alerte si proche de la limite
+    if cache["api_calls_today"] >= 700:
+        print(f"⚠️ QUOTA PROCHE: {cache['api_calls_today']}/800 appels API aujourd'hui")
+    return cache["api_calls_today"]
 
 TF_INTERVAL = {"4H":"4h","2H":"2h","1H":"1h","30min":"30min"}
 # 300 bougies = 50 jours H4 / 25 jours H2 / 12 jours H1 / 6 jours 30min
@@ -735,8 +753,9 @@ async def send_telegram_chart(signal, chart_bytes):
 # ══════════════════════════════════════════════════════════════════════════════
 # TWELVE DATA
 # ══════════════════════════════════════════════════════════════════════════════
-async def fetch_candles(pair, interval, outputsize=1250):
+async def fetch_candles(pair, interval, outputsize=300):
     symbol = pair.replace("/","")
+    track_api_call(1)
     try:
         async with httpx.AsyncClient(timeout=15) as cl:
             r = await cl.get("https://api.twelvedata.com/time_series", params={
@@ -753,6 +772,7 @@ async def fetch_candles(pair, interval, outputsize=1250):
 
 async def fetch_price(pair):
     symbol = pair.replace("/","")
+    track_api_call(1)
     try:
         async with httpx.AsyncClient(timeout=10) as cl:
             r = await cl.get("https://api.twelvedata.com/price",
@@ -824,16 +844,27 @@ async def run_scan(body: dict):
 
 # ── AUTO REFRESH PRIX ─────────────────────────────────────────────────────────
 async def refresh_prices():
-    for r in await asyncio.gather(*[fetch_price(p) for p in ALL_PAIRS],return_exceptions=True):
+    """
+    Refresh uniquement les 7 majeures en auto (7 req au lieu de 26).
+    Les mineures sont mises à jour seulement lors du scan manuel.
+    Économie : 73% du quota sur le refresh automatique.
+    """
+    for r in await asyncio.gather(*[fetch_price(p) for p in MAJOR_PAIRS],return_exceptions=True):
         if isinstance(r,dict) and r.get("ok"):
             cache["prices"][r["pair"]] = r["price"]
     cache["last_update"] = datetime.now(timezone.utc).isoformat()
 
 async def scheduler():
+    """
+    Refresh des prix toutes les 5 minutes SEULEMENT — au lieu de 60s.
+    Économise 80% du quota API gratuit.
+    26 paires × 12 fois/heure = 312 req/heure max
+    Avec quota 800/jour → suffisant pour ~2.5h d'auto-refresh
+    """
     while True:
         try: await refresh_prices()
         except Exception as e: print(f"Scheduler: {e}")
-        await asyncio.sleep(60)
+        await asyncio.sleep(300)  # 5 minutes au lieu de 60s
 
 @app.on_event("startup")
 async def startup():
@@ -866,7 +897,9 @@ async def send_startup_message():
         f"  • Figure : Triangle ≥50 bougies | Consolidation ≥30 bougies\n"
         f"  • 3 niveaux d'alerte : 🟡 Approche · 🟠 Zone · 🟢 Confirmé\n"
         f"  • Graphique envoyé sur chaque signal\n"
-        f"  • Anti-spam : 1 alerte unique par setup\n\n"
+        f"  • Anti-spam : 1 alerte unique par setup\n"
+        f"  • Refresh auto : toutes les 5min (économie quota)\n"
+        f"  • Quota API : 800 req/jour (plan gratuit)\n\n"
 
         f"<b>Rappel des règles clés :</b>\n"
         f"  ✅ Zone ≥ 2 retests avant d'entrer\n"
@@ -899,12 +932,19 @@ async def get_signals():
 
 @app.get("/api/status")
 async def get_status():
+    quota_used = cache.get("api_calls_today", 0)
+    quota_pct  = round(quota_used / 800 * 100, 1)
     return JSONResponse({
-        "status":"online","version":"7.1-double-structure-1250",
-        "strategy":"3 niveaux: EN_APPROCHE | SUR_ZONE | CONFIRME",
-        "last_update":cache["last_update"],
-        "telegram_ok":bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID),
-        "sent_alerts_count":len(cache["sent_alerts"]),
+        "status":      "online",
+        "version":     "7.1-double-structure",
+        "strategy":    "3 niveaux: EN_APPROCHE | SUR_ZONE | CONFIRME",
+        "last_update": cache["last_update"],
+        "telegram_ok": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID),
+        "sent_alerts": len(cache["sent_alerts"]),
+        "quota_used":  quota_used,
+        "quota_limit": 800,
+        "quota_pct":   quota_pct,
+        "quota_status": "OK" if quota_used < 600 else ("ATTENTION" if quota_used < 750 else "CRITIQUE"),
     })
 
 @app.get("/",response_class=HTMLResponse)
