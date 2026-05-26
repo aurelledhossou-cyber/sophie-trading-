@@ -459,6 +459,10 @@ button { font-family: var(--sans); cursor: pointer; border: none; outline: none;
       <span class="dot" id="autoDot" style="background:var(--red)"></span>
       <span id="autoLbl" style="margin-left:4px">AUTO</span>
     </button>
+    <button class="hbtn" id="demoBtn" onclick="runDemo()"
+      style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.08);color:#8b5cf6">
+      DEMO
+    </button>
   </div>
 </header>
 <div class="progress"><div class="progress-fill" id="progBar"></div></div>
@@ -470,6 +474,13 @@ button { font-family: var(--sans); cursor: pointer; border: none; outline: none;
       <span class="ticker-item" style="color:var(--text3)">⏳ Chargement des cours...</span>
     </div>
   </div>
+</div>
+
+<!-- DEMO BANNER -->
+<div id="demoBanner" style="display:none;background:rgba(139,92,246,.1);border-bottom:1px solid rgba(139,92,246,.3);padding:6px 16px;text-align:center;font-size:9px;font-family:var(--mono);color:#8b5cf6;letter-spacing:1px">
+  MODE DEMO — Données simulées réalistes · Quota API épuisé · Renouvellement à 00h00 UTC (02h Paris)
+  <button onclick="document.getElementById('demoBanner').style.display='none'"
+    style="background:transparent;border:none;color:#8b5cf6;margin-left:12px;cursor:pointer;font-size:11px">✕</button>
 </div>
 
 <!-- STRATEGY BAR -->
@@ -639,6 +650,47 @@ async function runScan() {
   if (btn) { btn.disabled=false; btn.className='scan-btn'; btn.textContent=`▶ SCANNER — ${S.selectedTF}`; }
   S.scanning = false;
   renderSidebar(); renderTab();
+}
+
+// ── DEMO MODE ──────────────────────────────────────────────────────────────
+async function runDemo() {
+  const btn = document.getElementById('demoBtn');
+  btn.textContent = '⏳ DEMO...';
+  btn.disabled = true;
+  setStatus('loading');
+  document.getElementById('progBar').style.width = '50%';
+
+  try {
+    const res = await fetch(`${API}/api/demo`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ timeframe: S.selectedTF, pairs: [...S.selectedPairs] })
+    });
+    document.getElementById('progBar').style.width = '90%';
+    const data = await res.json();
+
+    if (data.signals) {
+      S.signals    = data.signals;
+      S.lastUpdate = data.timestamp;
+      updateStats(data.signals);
+      setStatus('live');
+      document.getElementById('sTime').textContent = 'DEMO';
+      // Afficher bannière demo
+      document.getElementById('demoBanner').style.display = 'block';
+      updateTicker(data.prices || {});
+      toast(`🟣 MODE DEMO — ${data.signals.length} signal(s) simulé(s) sur ${data.timeframe}`, 'info');
+      renderSidebar();
+      renderTab();
+    }
+  } catch(e) {
+    setStatus('error');
+    toast('⚠️ Erreur mode demo', 'warn');
+  }
+
+  document.getElementById('progBar').style.width = '100%';
+  setTimeout(() => document.getElementById('progBar').style.width = '0', 500);
+  btn.textContent = 'DEMO';
+  btn.disabled = false;
 }
 
 async function refreshPrices() {
