@@ -639,7 +639,7 @@ async def scheduler():
     while True:
         try: await refresh_prices()
         except Exception as e: print(f"Scheduler: {e}")
-        await asyncio.sleep(300)  # 5 minutes — économie quota
+        await asyncio.sleep(1800)  # 30 minutes — économie quota maximale
 
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 @app.on_event("startup")
@@ -665,8 +665,10 @@ async def send_startup_message():
         f"  - 6 etapes Double Structure\n"
         f"  - Triangle>=50 bougies | Consolidation>=30\n"
         f"  - 3 niveaux : Approche · Zone · Confirme\n"
-        f"  - Refresh auto : toutes les 5min\n"
-        f"  - Quota API : 800 req/jour (plan gratuit)\n\n"
+        f"  - Refresh auto prix : toutes les 30min\n"
+        f"  - Quota API : 800 req/jour (plan gratuit)\n"
+        f"  - Consommation auto : ~336 req/jour\n"
+        f"  - Scans manuels restants : ~33/jour\n\n"
         f"Rappel regles cles :\n"
         f"  OK Zone >= 2 retests\n"
         f"  OK R/R minimum 2.5:1\n"
