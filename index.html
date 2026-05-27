@@ -864,7 +864,7 @@ function renderTab() {
       {n:'03',icon:'📐',c:'#f59e0b',t:'ZONE DE PRIX',d:'Zone de support ou résistance testée minimum 2 fois (retests) ou top/bottom historique. Plus de retests = zone plus forte.'},
       {n:'04',icon:'🎯',c:'#f97316',t:'ZONES PSYCHOLOGIQUES + TP',d:'Identifier niveaux ronds et zones dangereuses entre entrée et objectif. Positionner le TP avant la première zone dangereuse. Repérer le TP fantôme.'},
       {n:'05',icon:'⚡',c:'#00e87a',t:'BOUGIE DE CONFIRMATION',d:'Attendre une bougie à forte probabilité : Englobante, Pin Bar, Marubozu, Marteau ou Cassure (corps ≥ 55%). SL sous dernier HH/LL. R/R ≥ 2.5. Horaire 8h-21h.'},
-      {n:'06',icon:'🛡',c:'#ef4444', t:'MANAGER LA POSITION',d:'Trail SL sur derniers HH/LL (Dow). SL sous niveaux psychologiques. Déplacer SL au break-even après +33% du mouvement.'},
+      {n:'06',icon:'🛡',c:'#ef4444', t:'MANAGER LA POSITION',d:'SL professionnel selon 4 règles : R1=MM100, R2=Zone S/R (≥2 retests), R3=Dernier sommet/creux (20 bougies max), R4=Bougie de liquidité. Trail SL sur nouveaux HH/LL. Déplacer au break-even après +33% du mouvement.'},
     ];
     el.innerHTML = `<div class="steps-grid">${steps.map(s=>`
       <div class="step-card" style="border-top-color:${s.c}">
