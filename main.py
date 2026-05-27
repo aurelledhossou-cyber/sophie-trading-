@@ -262,23 +262,158 @@ def detect_candle_confirmation(candles, zone_level, direction, pair):
             "emoji":best["emoji"],"all_signals":signals,"body_ratio":round(body_ratio,2)}
 
 def calc_sl_tp(candles, trend_data, direction, pair):
-    last=candles[-1]; entry=last["close"]; prec=dp(pair)
-    atr=sum(c["high"]-c["low"] for c in candles[-20:])/min(20,len(candles))
-    if direction=="LONG":
-        sl_base=trend_data.get("last_low",entry-atr*2)
-        mm100=trend_data.get("mm100")
-        sl=(mm100-atr*0.3) if (mm100 and sl_base<mm100<entry) else sl_base-atr*0.15
-        sl=min(sl,entry-atr*1.2)
+    """
+    SL Professionnel — 4 règles combinées :
+
+    Règle 1 : SL sous/sur la MM100
+    Règle 2 : SL sous/sur la zone S/R (≥2 retests)
+    Règle 3 : SL derrière le dernier sommet/creux
+              dans les 20 dernières bougies maximum
+    Règle 4 : SL sous/sur la bougie de liquidité
+              (bougie venue chercher liquidité avant-dernière)
+
+    → On retient le SL le PLUS PROCHE validant les 4 règles
+    → Si R/R < 2.5 → None (signal invalidé)
+    """
+    if len(candles) < 5:
+        return None
+
+    last  = candles[-1]
+    prev  = candles[-2]
+    entry = last["close"]
+    prec  = dp(pair)
+    atr   = sum(c["high"]-c["low"] for c in candles[-20:]) / min(20, len(candles))
+
+    sl_candidates = []
+    sl_rules_used = []
+
+    # ── RÈGLE 1 : MM100 ───────────────────────────────────────────────────────
+    mm100 = trend_data.get("mm100")
+    if mm100:
+        if direction == "LONG" and mm100 < entry:
+            sl_r1 = mm100 - atr * 0.1   # légèrement sous la MM100
+            sl_candidates.append(sl_r1)
+            sl_rules_used.append(f"R1:MM100({round(mm100,prec)})")
+        elif direction == "SHORT" and mm100 > entry:
+            sl_r1 = mm100 + atr * 0.1
+            sl_candidates.append(sl_r1)
+            sl_rules_used.append(f"R1:MM100({round(mm100,prec)})")
+
+    # ── RÈGLE 2 : Zone S/R (≥2 retests) ──────────────────────────────────────
+    zone_level = trend_data.get("last_low") if direction == "LONG" else trend_data.get("last_high")
+    if zone_level:
+        if direction == "LONG" and zone_level < entry:
+            sl_r2 = zone_level - atr * 0.15
+            sl_candidates.append(sl_r2)
+            sl_rules_used.append(f"R2:Zone({round(zone_level,prec)})")
+        elif direction == "SHORT" and zone_level > entry:
+            sl_r2 = zone_level + atr * 0.15
+            sl_candidates.append(sl_r2)
+            sl_rules_used.append(f"R2:Zone({round(zone_level,prec)})")
+
+    # ── RÈGLE 3 : Dernier sommet/creux dans les 20 dernières bougies ──────────
+    # Chercher le dernier pivot dans les 20 dernières bougies UNIQUEMENT
+    recent_20 = candles[-20:] if len(candles) >= 20 else candles
+    if direction == "LONG":
+        # Dernier swing low dans les 20 dernières bougies
+        last_low_20 = None
+        for i in range(len(recent_20)-2, 0, -1):
+            c = recent_20[i]
+            if (c["low"] < recent_20[i-1]["low"] and
+                c["low"] < recent_20[min(i+1, len(recent_20)-1)]["low"]):
+                last_low_20 = c["low"]
+                break
+        if last_low_20 and last_low_20 < entry:
+            sl_r3 = last_low_20 - atr * 0.1
+            sl_candidates.append(sl_r3)
+            sl_rules_used.append(f"R3:SwingLow20({round(last_low_20,prec)})")
     else:
-        sl_base=trend_data.get("last_high",entry+atr*2)
-        mm100=trend_data.get("mm100")
-        sl=(mm100+atr*0.3) if (mm100 and entry<mm100<sl_base) else sl_base+atr*0.15
-        sl=max(sl,entry+atr*1.2)
-    sl_dist=abs(entry-sl)
-    if sl_dist<atr*0.3: return None
-    tp=entry+sl_dist*2.5 if direction=="LONG" else entry-sl_dist*2.5
-    return {"entry":round(entry,prec),"stop_loss":round(sl,prec),
-            "take_profit":round(tp,prec),"ratio":2.5,"atr":round(atr,prec)}
+        # Dernier swing high dans les 20 dernières bougies
+        last_high_20 = None
+        for i in range(len(recent_20)-2, 0, -1):
+            c = recent_20[i]
+            if (c["high"] > recent_20[i-1]["high"] and
+                c["high"] > recent_20[min(i+1, len(recent_20)-1)]["high"]):
+                last_high_20 = c["high"]
+                break
+        if last_high_20 and last_high_20 > entry:
+            sl_r3 = last_high_20 + atr * 0.1
+            sl_candidates.append(sl_r3)
+            sl_rules_used.append(f"R3:SwingHigh20({round(last_high_20,prec)})")
+
+    # ── RÈGLE 4 : Bougie de liquidité ─────────────────────────────────────────
+    # La bougie qui est venue chercher la liquidité de l'avant-dernière
+    # = bougie dont le low/high dépasse celui de l'avant-dernière
+    if len(candles) >= 3:
+        liq_candle = None
+        # Chercher dans les 5 dernières bougies
+        for i in range(len(candles)-1, max(len(candles)-6, 1), -1):
+            c_curr = candles[i]
+            c_prev = candles[i-1]
+            if direction == "LONG":
+                # Bougie venue chercher liquidité sous l'avant-dernière
+                if c_curr["low"] < c_prev["low"]:
+                    liq_candle = c_curr
+                    break
+            else:
+                # Bougie venue chercher liquidité au-dessus de l'avant-dernière
+                if c_curr["high"] > c_prev["high"]:
+                    liq_candle = c_curr
+                    break
+
+        if liq_candle:
+            if direction == "LONG":
+                sl_r4 = liq_candle["low"] - atr * 0.05
+                if sl_r4 < entry:
+                    sl_candidates.append(sl_r4)
+                    sl_rules_used.append(f"R4:Liq({round(liq_candle['low'],prec)})")
+            else:
+                sl_r4 = liq_candle["high"] + atr * 0.05
+                if sl_r4 > entry:
+                    sl_candidates.append(sl_r4)
+                    sl_rules_used.append(f"R4:Liq({round(liq_candle['high'],prec)})")
+
+    # ── SÉLECTION DU SL OPTIMAL ───────────────────────────────────────────────
+    # On prend le SL le PLUS PROCHE de l'entrée qui valide les règles
+    # = meilleur R/R tout en respectant la structure
+    if not sl_candidates:
+        # Fallback : ATR × 1.5 minimum
+        if direction == "LONG":
+            sl_final = entry - atr * 1.5
+        else:
+            sl_final = entry + atr * 1.5
+        rule_used = "FALLBACK:ATR×1.5"
+    else:
+        if direction == "LONG":
+            # SL le plus haut (le plus proche de l'entrée) parmi les candidats valides
+            valid = [s for s in sl_candidates if s < entry - atr * 0.3]
+            sl_final = max(valid) if valid else min(sl_candidates)
+        else:
+            # SL le plus bas (le plus proche de l'entrée)
+            valid = [s for s in sl_candidates if s > entry + atr * 0.3]
+            sl_final = min(valid) if valid else max(sl_candidates)
+        rule_used = " | ".join(sl_rules_used)
+
+    sl_dist = abs(entry - sl_final)
+
+    # SL trop serré (moins de 0.3 ATR) → invalide
+    if sl_dist < atr * 0.3:
+        return None
+
+    # ── TAKE PROFIT — R/R minimum 2.5 ────────────────────────────────────────
+    tp_min = entry + sl_dist * 2.5 if direction == "LONG" else entry - sl_dist * 2.5
+    ratio  = round(sl_dist * 2.5 / sl_dist, 2)  # = 2.5
+
+    return {
+        "entry":      round(entry,    prec),
+        "stop_loss":  round(sl_final, prec),
+        "take_profit":round(tp_min,   prec),
+        "ratio":      ratio,
+        "atr":        round(atr,      prec),
+        "sl_rule":    rule_used,
+        "sl_distance":round(sl_dist,  prec),
+        "sl_candidates": len(sl_candidates),
+    }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ANALYSE PRINCIPALE — 3 NIVEAUX D'ALERTE
@@ -335,11 +470,13 @@ def analyze_full(candles, tf, pair):
         "candle_strength":candle_sig["strength"] if candle_sig else None,
         "psych_levels":psych["psych_levels"],"danger_zones":psych["danger_zones"],
         "tp_fantome":psych["tp_fantome"],
-        "entry":sl_tp["entry"] if sl_tp else None,
-        "stop_loss":sl_tp["stop_loss"] if sl_tp else None,
+        "entry":      sl_tp["entry"]       if sl_tp else None,
+        "stop_loss":  sl_tp["stop_loss"]   if sl_tp else None,
         "take_profit":sl_tp["take_profit"] if sl_tp else None,
-        "ratio":sl_tp["ratio"] if sl_tp else None,
-        "atr":sl_tp["atr"] if sl_tp else None,
+        "ratio":      sl_tp["ratio"]       if sl_tp else None,
+        "atr":        sl_tp["atr"]         if sl_tp else None,
+        "sl_rule":    sl_tp.get("sl_rule") if sl_tp else None,
+        "sl_distance":sl_tp.get("sl_distance") if sl_tp else None,
         "session":session["session"],
         "timestamp":datetime.now(timezone.utc).isoformat(),
     }
