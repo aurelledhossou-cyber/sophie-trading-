@@ -43,7 +43,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
 .logo-ico{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,#00ff9d,#00c4ff);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 12px rgba(0,255,157,.28)}
 .logo-t{font-size:11px;font-weight:700;letter-spacing:1px;color:#e8f4ff;white-space:nowrap}
 .logo-s{font-size:6px;letter-spacing:2px;color:var(--text3)}
-#sb-toggle{padding:6px 11px;border-radius:5px;border:1px solid rgba(0,196,255,.3);background:rgba(0,196,255,.07);color:var(--blue);font-family:inherit;font-size:8px;cursor:pointer;letter-spacing:1px;white-space:nowrap;display:none}
+#sb-toggle{padding:6px 11px;border-radius:5px;border:1px solid rgba(0,196,255,.3);background:rgba(0,196,255,.07);color:var(--blue);font-family:inherit;font-size:8px;cursor:pointer;letter-spacing:1px;white-space:nowrap;display:none;align-items:center;gap:5px}
 .live-badge{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;border:1px solid rgba(0,255,157,.3);background:rgba(0,255,157,.06);font-size:7px;color:var(--green);white-space:nowrap}
 .live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 1.5s infinite}
 #clock{font-size:9px;color:var(--text2);font-family:'Space Mono',monospace;white-space:nowrap}
@@ -52,8 +52,9 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
 #notif-btn{border-color:rgba(245,200,66,.25);color:var(--yellow)}
 #notif-btn.on{border-color:rgba(245,200,66,.5);background:rgba(245,200,66,.1)}
 #auto-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:1px;border:1px solid;transition:all .2s;white-space:nowrap}
-#scan-btn{padding:7px 20px;border-radius:6px;border:1px solid rgba(0,255,157,.4);background:linear-gradient(135deg,rgba(0,255,157,.12),rgba(0,196,255,.08));color:var(--green);font-family:inherit;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;transition:all .2s;white-space:nowrap}
-#scan-btn:hover:not(:disabled){background:linear-gradient(135deg,rgba(0,255,157,.2),rgba(0,196,255,.14));box-shadow:0 0 16px rgba(0,255,157,.2)}
+#scan-btn{padding:8px 22px;border-radius:6px;border:1px solid rgba(0,255,157,.4);background:linear-gradient(135deg,rgba(0,255,157,.12),rgba(0,196,255,.08));color:var(--green);font-family:inherit;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;transition:all .2s;white-space:nowrap;min-height:38px}
+#scan-btn:hover:not(:disabled){background:linear-gradient(135deg,rgba(0,255,157,.2),rgba(0,196,255,.14));box-shadow:0 0 16px rgba(0,255,157,.2);transform:translateY(-1px)}
+#scan-btn.scanning{animation:pulse .8s infinite;border-color:rgba(0,196,255,.5);color:var(--blue)}
 #scan-btn:disabled{opacity:.5;cursor:not-allowed}
 #prog-wrap{height:2px;background:var(--bg)}
 #prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .25s;box-shadow:0 0 6px var(--green)}
@@ -262,6 +263,19 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
 .sl-pro-lbl{font-size:7px;letter-spacing:3px;color:rgba(255,77,109,.6);margin-bottom:12px}
 .sl-rule-item{display:flex;gap:10px;margin-bottom:9px;padding:9px 11px;background:rgba(255,255,255,.02);border-radius:6px;border-left:3px solid}
 
+/* HISTORIQUE */
+.hist-card{background:rgba(255,255,255,.02);border:1px solid var(--bord);border-radius:9px;padding:13px 15px;margin-bottom:8px;animation:fadeUp .3s ease}
+.hist-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.hist-pair{font-size:16px;font-weight:700;font-family:'Space Mono',monospace;color:#e8f4ff}
+.hist-ts{font-size:7px;color:var(--text3);margin-top:2px}
+.hist-timeline{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.hist-entry{display:flex;align-items:flex-start;gap:8px;padding:6px 9px;border-radius:5px;border-left:2px solid}
+.hist-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.hist-scan{font-size:7px;color:var(--text3);margin-bottom:2px}
+.hist-msg{font-size:8px;line-height:1.5}
+.hist-score-change{font-size:8px;font-weight:700;font-family:'Space Mono',monospace}
+.hist-empty{text-align:center;padding:50px 20px;font-size:9px;letter-spacing:2px;color:var(--text3)}
+
 /* TOAST */
 #tw{position:fixed;bottom:16px;right:16px;z-index:1000;display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:none}
 .toast{padding:8px 12px;border-radius:5px;font-size:9px;letter-spacing:1px;border:1px solid;backdrop-filter:blur(8px);max-width:270px;animation:slideL .3s ease;pointer-events:all}
@@ -273,9 +287,9 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
 /* RESPONSIVE */
 @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}.dschk{grid-template-columns:1fr}.mtfrow{grid-template-columns:repeat(2,1fr)}.sl-rules{grid-template-columns:1fr}.pgrid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){
-  #sb-toggle{display:flex}
-  #sb{position:fixed;top:0;left:0;height:100vh;z-index:150;transform:translateX(-100%);min-height:100vh;width:272px;padding-top:14px}
-  #sb.open{transform:translateX(0)}
+  #sb-toggle{display:flex !important}
+  #sb{position:fixed;top:0;left:0;height:100vh;z-index:150;transform:translateX(-100%);min-height:100vh;width:285px;padding-top:14px;box-shadow:4px 0 24px rgba(0,0,0,.7)}
+  #sb.open{transform:translateX(0) !important}
   .pgrid{grid-template-columns:repeat(2,1fr)}
   .card-hdr{flex-direction:column}
   .big-score{font-size:24px;text-align:left}
@@ -348,7 +362,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
   <span id="quota-txt">–/800</span>
 </div>
 
-<div id="sb-overlay" onclick="closeSB()"></div>
+<div id="sb-overlay" onclick="closeSB()" style="display:none"></div>
 <div id="layout">
 
 <!-- SIDEBAR -->
@@ -414,6 +428,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
   <!-- TABS -->
   <div class="tabs">
     <button class="tab active" onclick="swTab('alerts',this)">SIGNAUX</button>
+    <button class="tab" onclick="swTab('history',this)">HISTORIQUE <span id="hist-count" style="font-size:7px;padding:1px 5px;border-radius:3px;background:rgba(0,196,255,.15);color:var(--blue);margin-left:3px">0</span></button>
     <button class="tab" onclick="swTab('schema',this)">SCHEMA</button>
     <button class="tab" onclick="swTab('rules',this)">REGLES</button>
   </div>
@@ -438,6 +453,11 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;b
       <div class="es">Sélectionnez un timeframe et vos paires, puis cliquez SCANNER</div>
     </div>
     <div class="alist" id="al" style="display:none"></div>
+  </div>
+
+  <!-- TAB HISTORIQUE -->
+  <div id="tab-history" style="display:none">
+    <div id="hist-content"></div>
   </div>
 
   <!-- TAB SCHEMA -->
@@ -469,6 +489,9 @@ let scanning=false, autoScan=false, autoInt=null;
 let notifOn=false, nHist=[], unread=0, npOpen=false;
 let quotaUsed=0, quotaLimit=800;
 const AUTO_MS=300000; // 5 min
+let scanCount=0;
+// HISTORIQUE : {pairTF: {pair, tf, entries:[{scanN, ts, score, status, entry, sl, tp, trend, detail}]}}
+let histMap={};
 
 // ════════════════════════════════════════════
 //  CLOCK & SESSIONS
@@ -629,7 +652,8 @@ async function fetchAllPairs(pairs,interval){
 // ════════════════════════════════════════════
 function stepTrend(c){
   if(!c||c.length<20)return{ok:false,trend:"NEUTRE",str:0,detail:"Données insuffisantes"};
-  const arr=c.slice(-Math.min(c.length,80));
+  // Original : 40 bougies pour mieux détecter les tendances courtes
+  const n=Math.min(c.length,40),arr=c.slice(-n);
   const sH=[],sL=[];
   for(let i=3;i<arr.length-3;i++){
     if(arr[i].h>arr[i-1].h&&arr[i].h>arr[i+1].h&&arr[i].h>arr[i-2].h&&arr[i].h>arr[i+2].h)sH.push(arr[i].h);
@@ -643,43 +667,26 @@ function stepTrend(c){
   let sc=0;
   for(let i=1;i<sH.length;i++)up?sH[i]>sH[i-1]?sc++:sc--:sH[i]<sH[i-1]?sc++:sc--;
   const str=Math.min(100,Math.max(0,50+sc*10));
-  return{ok:true,trend:up?"HAUSSIÈRE":"BAISSIÈRE",str,swH:sH,swL:sL,
-    detail:`${up?"HAUSSIÈRE":"BAISSIÈRE"} · ${str}%`};
+  const trend=up?"HAUSSIÈRE":"BAISSIÈRE";
+  return{ok:true,trend,str,detail:`${trend} · ${str}%`,swH:sH,swL:sL};
 }
 
 function stepFigure(c){
-  if(!c||c.length<35)return{ok:false,figure:"AUCUNE",detail:"Données insuffisantes (min 35 bougies)"};
-  // Triangle ≥50 bougies
-  for(const w of [100,80,60,50]){
-    if(c.length<w+10)continue;
-    const seg=c.slice(-w), prev=c.slice(-(w+20),-w);
-    if(prev.length<8)continue;
-    const fh=seg.map(x=>x.h),fl=seg.map(x=>x.l);
-    const ph=prev.map(x=>x.h),pl=prev.map(x=>x.l);
-    const trendOk=prev[0]&&(seg[0].c>seg[0].c)? true : (Math.max(...ph.slice(0,5))>Math.max(...ph.slice(-5))||Math.min(...pl.slice(0,5))<Math.min(...pl.slice(-5)));
-    if(!trendOk)continue;
-    const n=seg.length;
-    const tS=(fh[n-1]-fh[0])/n, bS=(fl[n-1]-fl[0])/n;
-    const rng=(Math.max(...fh)-Math.min(...fl))/seg[n-1].c;
-    if(tS<-0.000003&&bS>0.000003&&rng<0.03){
-      return{ok:true,figure:"TRIANGLE",nb:w,zH:Math.max(...fh),zL:Math.min(...fl),
-        range:+(rng*100).toFixed(2),rel:w>=80?"HAUTE":"MOYENNE",
-        detail:`Triangle · ${w} bougies · Range ${+(rng*100).toFixed(2)}%`};
-    }
-  }
-  // Consolidation ≥30 bougies
-  for(const w of [80,60,50,40,30]){
-    if(c.length<w+10)continue;
-    const seg=c.slice(-w);
-    const fh=seg.map(x=>x.h),fl=seg.map(x=>x.l);
-    const rng=(Math.max(...fh)-Math.min(...fl))/seg[seg.length-1].c;
-    if(rng<0.015){
-      return{ok:true,figure:"CONSOLIDATION",nb:w,zH:Math.max(...fh),zL:Math.min(...fl),
-        range:+(rng*100).toFixed(2),rel:w>=50?"HAUTE":"MOYENNE",
-        detail:`Consolidation · ${w} bougies · Range ${+(rng*100).toFixed(2)}%`};
-    }
-  }
-  return{ok:false,figure:"AUCUNE",detail:"Aucune figure (Triangle≥50 / Consolidation≥30 bougies)"};
+  if(!c||c.length<10)return{ok:false,figure:"AUCUNE",detail:"Données insuffisantes"};
+  const tail=c.slice(-12);
+  const tH=Math.max(...tail.map(x=>x.h)),tL=Math.min(...tail.map(x=>x.l));
+  const range=(tH-tL)/tail[tail.length-1].c;
+  const isC=range<0.011;
+  const tS=(tail[tail.length-1].h-tail[0].h)/tail.length;
+  const bS=(tail[tail.length-1].l-tail[0].l)/tail.length;
+  const isTri=isC&&(Math.abs(tS)<Math.abs(bS*.6)||Math.abs(bS)<Math.abs(tS*.6));
+  const isW=isC&&tS*bS>0&&Math.abs(tS-bS)<Math.abs(tS)*.4;
+  if(!isC)return{ok:false,figure:"AUCUNE",detail:"Aucune figure détectée"};
+  const figure=isTri?"TRIANGLE":isW?"WEDGE":"CONSOLIDATION";
+  const nb=12; const rel=range<0.005?"HAUTE":"MOYENNE";
+  return{ok:true,figure,nb,zH:+tH.toFixed(5),zL:+tL.toFixed(5),
+    range:+(range*100).toFixed(2),rel,
+    detail:`${figure} · ${nb} bougies · Range ${+(range*100).toFixed(2)}%`};
 }
 
 function stepMM100(c,trend){
@@ -860,10 +867,10 @@ function analyzeDS(pair,entryTF,allC){
   const atr=ec.slice(-14).reduce((a,x)=>a+(x.h-x.l),0)/14;
 
   const st={};
+  // Étapes séquentielles — logique originale
   st.trend=stepTrend(ec);
   if(!st.trend.ok)return null;
 
-  st.figure=stepFigure(ec);
   st.mm100=stepMM100(ec,st.trend.trend);
   if(!st.mm100.ok&&st.mm100.status!=="INCALCULABLE")return null;
 
@@ -872,12 +879,16 @@ function analyzeDS(pair,entryTF,allC){
   const zq=zoneQ(ec,zone);
 
   st.rr=stepRR(ec);
+  if(!st.rr.ok)return null;
+
+  st.figure=stepFigure(ec);
+
   st.candle=stepCandle(ec,st.trend.trend,zone);
   if(!st.figure.ok&&st.candle.score<80)return null;
   if(!st.candle.broke)return null;
 
   st.pb=stepPB(ec,st.candle.btype,zone,st.candle.dir);
-  if(st.pb.status==="AVORTE")return null;
+  if(st.pb.status==="AVORTÉ")return null;
 
   // SL 4 règles
   const slData=calcSL4Rules(ec,st.trend.trend,zone,st.candle.dir);
@@ -964,9 +975,38 @@ async function runScan(){
     if(res)newAlerts.push({id:`${pair}-${selTF}-${Date.now()}-${i}`,...res});
   }
 
+  scanCount++;
   newAlerts.sort((a,b)=>b.score-a.score);
   alerts=[...newAlerts,...alerts.filter(a=>!newAlerts.find(n=>n.pair===a.pair&&n.timeframe===a.timeframe))].slice(0,60);
   amap={}; alerts.forEach(a=>{amap[a.pair]=a;});
+
+  // Mettre à jour l'historique
+  const allPairsScanned=[...selPairs];
+  for(const pair of allPairsScanned){
+    const key=`${pair}_${selTF}`;
+    const found=newAlerts.find(a=>a.pair===pair&&a.timeframe===selTF);
+    if(!histMap[key]){
+      histMap[key]={pair,tf:selTF,firstSeen:Date.now(),entries:[]};
+    }
+    histMap[key].entries.unshift({
+      scanN: scanCount,
+      ts: Date.now(),
+      score: found?found.score:0,
+      status: found?found.gStatus:"AUCUN SIGNAL",
+      direction: found?found.direction:"—",
+      entry: found?found.entry:null,
+      sl: found?found.stopLoss:null,
+      tp: found?found.takeProfit:null,
+      trend: found?found.st?.trend?.trend:"NEUTRE",
+      detail: found?found.st?.trend?.detail:"Pas de structure DS",
+      sessOk: found?found.sessOk:inH(),
+    });
+    // Garder max 10 entrées par paire
+    if(histMap[key].entries.length>10) histMap[key].entries=histMap[key].entries.slice(0,10);
+  }
+  updateHistCount();
+  if(document.getElementById("tab-history").style.display!=="none") renderHistory();
+
   updateStats(); renderAlerts(); renderSidebar();
 
   // Quota estimé
@@ -988,12 +1028,20 @@ async function runScan(){
 
   const now=new Date();
   const scanTime=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-  document.getElementById("sl2").innerHTML=`SCAN <span style="color:var(--green)">${scanTime}</span> · ${pairs.length} paires · TF ${TD_IV[selTF]||selTF}`;
-  document.getElementById("scan-info").textContent=`Dernier scan: ${scanTime} · ${newAlerts.length} signal(s)`;
+  const sl2=document.getElementById("sl2");
+  const si=document.getElementById("scan-info");
+  if(sl2)sl2.innerHTML=`SCAN <span style="color:var(--green)">${scanTime}</span> · ${pairs.length} paires · TF ${TD_IV[selTF]||selTF}`;
+  if(si)si.textContent=`Dernier scan: ${scanTime} · ${newAlerts.length} signal(s)`;
   document.getElementById("prog-bar").style.width="0";
-  [btn1,btn2].forEach(b=>{if(b){b.disabled=false;b.textContent=b.id==="scan-btn"?"▶ SCANNER":"▶ SCANNER";}});
+  [btn1,btn2].forEach(b=>{
+    if(b){
+      b.disabled=false;
+      b.classList&&b.classList.remove&&b.classList.remove("scanning");
+      b.textContent="▶ SCANNER";
+    }
+  });
   scanning=false;
-  if(autoScan)autoInt=setTimeout(runScan,AUTO_MS);
+  if(autoScan) autoInt=setTimeout(runScan,AUTO_MS);
 }
 
 // ════════════════════════════════════════════
@@ -1241,6 +1289,185 @@ if(!API_KEY){
 }
 renderSidebar();
 renderSchema();
+
+// ════════════════════════════════════════════
+//  HISTORIQUE DES OPPORTUNITÉS
+// ════════════════════════════════════════════
+function updateHistCount(){
+  const n=Object.keys(histMap).filter(k=>histMap[k].entries.some(e=>e.score>0)).length;
+  const el=document.getElementById("hist-count");
+  if(el) el.textContent=n;
+}
+
+function renderHistory(){
+  const el=document.getElementById("hist-content");
+  if(!el) return;
+  const entries=Object.values(histMap).filter(h=>h.entries.length>0);
+  if(!entries.length){
+    el.innerHTML='<div class="hist-empty">AUCUN HISTORIQUE · LANCEZ UN SCAN POUR COMMENCER</div>';
+    return;
+  }
+  // Trier par dernier score décroissant
+  entries.sort((a,b)=>(b.entries[0]?.score||0)-(a.entries[0]?.score||0));
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:8px;color:var(--text3)">${entries.length} paire(s) analysée(s) · ${scanCount} scan(s) total</div>
+      <button onclick="clearHistory()" style="padding:4px 10px;border-radius:4px;border:1px solid rgba(255,77,109,.3);background:rgba(255,77,109,.06);color:var(--red);font-family:inherit;font-size:7px;cursor:pointer;letter-spacing:1px">EFFACER</button>
+    </div>
+    ${entries.map(h=>{
+      const last=h.entries[0];
+      const prev=h.entries[1];
+      const sc2=last.score>=75?"var(--green)":last.score>=50?"var(--yellow)":"var(--orange)";
+      const scoreDiff=prev?(last.score-prev.score):0;
+      const diffStr=scoreDiff>0?`<span style="color:var(--green)">▲+${scoreDiff}</span>`:scoreDiff<0?`<span style="color:var(--red)">▼${scoreDiff}</span>`:`<span style="color:var(--text3)">━ 0</span>`;
+      const dirCls=last.direction==="LONG"?"bl":"bs";
+      const hasSig=last.score>0;
+
+      // Timeline des scans
+      const timeline=h.entries.slice(0,6).map((e,i)=>{
+        const bc=e.score>=75?"rgba(0,255,157,.3)":e.score>=50?"rgba(245,200,66,.3)":e.score>0?"rgba(255,124,92,.3)":"rgba(42,64,96,.3)";
+        const dc2=e.score>=75?"var(--green)":e.score>=50?"var(--yellow)":e.score>0?"var(--orange)":"var(--text3)";
+        const statusIcon=e.status==="ENTRÉE"?"🟢":e.status==="ATTENDRE"?"🟠":e.status==="SURVEILLER"?"🟡":"⚫";
+        const sessIcon=e.sessOk?"⏰":"🌙";
+        return `<div class="hist-entry" style="border-left-color:${bc}">
+          <div class="hist-dot" style="background:${dc2}"></div>
+          <div style="flex:1">
+            <div class="hist-scan">SCAN #${e.scanN} · ${new Date(e.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} ${sessIcon}</div>
+            <div class="hist-msg" style="color:${dc2}">
+              ${statusIcon} ${e.status} · Score <strong>${e.score}/100</strong>
+              ${e.trend?`<span style="color:var(--text3)"> · ${e.trend}</span>`:""}
+            </div>
+            ${e.entry?`<div style="font-size:7px;color:var(--text3);margin-top:2px">Entrée: ${e.entry} · SL: ${e.sl} · TP: ${e.tp}</div>`:""}
+          </div>
+        </div>`;
+      }).join("");
+
+      return `<div class="hist-card" style="border-left:3px solid ${sc2}">
+        <div class="hist-hdr">
+          <div>
+            <div class="hist-pair">${h.pair}</div>
+            <div class="hist-ts">${TD_IV[h.tf]||h.tf} · Premier scan: ${new Date(h.firstSeen).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
+            <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap">
+              ${hasSig?`<span class="badge ${dirCls}">${last.direction}</span>`:""}
+              <span class="badge btf">${TD_IV[h.tf]||h.tf}</span>
+              ${last.sessOk?'<span class="badge" style="color:var(--green);border-color:rgba(0,255,157,.25);background:rgba(0,255,157,.06)">8h–21h</span>':'<span class="badge" style="color:var(--orange);border-color:rgba(255,124,92,.25)">HORS HORAIRE</span>'}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="hist-score-change" style="color:${sc2};font-size:22px">${last.score}</div>
+            <div style="font-size:7px;color:var(--text3)">/100</div>
+            <div style="font-size:9px;margin-top:3px">${diffStr}</div>
+            <div style="font-size:7px;color:var(--text3);margin-top:3px">${h.entries.length} scan(s)</div>
+          </div>
+        </div>
+        <div style="font-size:8px;font-family:'Space Mono',monospace;letter-spacing:2px;color:var(--text3);margin-bottom:6px">ÉVOLUTION :</div>
+        <div class="hist-timeline">${timeline}</div>
+      </div>`;
+    }).join("")}`;
+}
+
+function clearHistory(){
+  histMap={}; scanCount=0;
+  updateHistCount();
+  renderHistory();
+  toast("Historique effacé","info");
+}
+
+// ════════════════════════════════════════════
+//  FONCTIONS BOUTONS — CORRIGÉES
+// ════════════════════════════════════════════
+
+function setTF(el, tf) {
+  selTF = tf;
+  document.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
+  if (el) el.classList.add("active");
+  const lbl = TD_IV[tf] || tf;
+  const bigBtn = document.getElementById("scan-big-btn");
+  if (bigBtn) bigBtn.textContent = `▶ SCANNER — ${lbl}`;
+  toast(`TF ${lbl} sélectionné · Cliquez SCANNER`, "info");
+}
+
+function togPair(p) {
+  if (selPairs.has(p)) {
+    if (selPairs.size > 1) selPairs.delete(p);
+  } else {
+    selPairs.add(p);
+  }
+  renderSidebar();
+}
+
+function selG(g) {
+  selPairs = new Set(g === "major" ? MAJOR : g === "minor" ? MINOR : ALL);
+  renderSidebar();
+  const n = g === "major" ? "7 majeures" : g === "minor" ? "19 mineures" : "26 paires";
+  toast(n + " sélectionnées", "info");
+}
+
+function toggleSB() {
+  const sb = document.getElementById("sb");
+  const ov = document.getElementById("sb-overlay");
+  const isOpen = sb.classList.contains("open");
+  if (isOpen) {
+    sb.classList.remove("open");
+    if (ov) { ov.classList.remove("open"); ov.style.display = "none"; }
+  } else {
+    sb.classList.add("open");
+    if (ov) { ov.classList.add("open"); ov.style.display = "block"; }
+  }
+}
+
+function closeSB() {
+  const sb = document.getElementById("sb");
+  const ov = document.getElementById("sb-overlay");
+  if (sb) sb.classList.remove("open");
+  if (ov) { ov.classList.remove("open"); ov.style.display = "none"; }
+}
+
+function toggleAuto() {
+  autoScan = !autoScan;
+  clearTimeout(autoInt);
+  const btn = document.getElementById("auto-btn");
+  const dot = document.getElementById("adot");
+  const lbl = document.getElementById("albl");
+  if (!btn) return;
+  if (autoScan) {
+    btn.style.cssText = "border:1px solid rgba(0,255,157,.4);background:rgba(0,255,157,.08);color:var(--green);display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:1px";
+    if (dot) { dot.style.background = "var(--green)"; dot.style.boxShadow = "0 0 6px var(--green)"; dot.style.animation = "pulse 1.5s infinite"; }
+    if (lbl) lbl.textContent = "AUTO ON";
+    autoInt = setTimeout(runScan, AUTO_MS);
+    toast("Auto-scan activé · relance dans 5min", "info");
+  } else {
+    btn.style.cssText = "border:1px solid rgba(255,77,109,.3);background:rgba(255,77,109,.05);color:var(--red);display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:1px";
+    if (dot) { dot.style.background = "var(--red)"; dot.style.boxShadow = "0 0 5px var(--red)"; dot.style.animation = "none"; }
+    if (lbl) lbl.textContent = "AUTO OFF";
+    toast("Auto-scan désactivé", "info");
+  }
+}
+
+function swTab(tab, el) {
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  if (el) el.classList.add("active");
+  ["alerts","history","schema","rules"].forEach(t => {
+    const e = document.getElementById("tab-" + t);
+    if (e) e.style.display = (t === tab) ? "block" : "none";
+  });
+  if (tab === "schema")  renderSchema();
+  if (tab === "rules")   renderRules();
+  if (tab === "history") renderHistory();
+}
+
+function setF(type, val, el) {
+  if (type === "s") fS = val;
+  else              fD = val;
+  document.querySelectorAll(".fb").forEach(b => {
+    const oc = b.getAttribute("onclick") || "";
+    if (oc.includes("setF('" + type + "'")) b.classList.remove("active");
+  });
+  if (el) el.classList.add("active");
+  renderAlerts();
+}
+
 renderRules();
 updateQuota(0,800);
 updateClock();
